@@ -3,10 +3,15 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { generateToken } from '@/lib/auth';
 import { sendPasswordResetEmail } from '@/lib/email';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 
 const schema = z.object({ email: z.string().email() });
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
+  const rl = checkRateLimit({ key: `forgot:${ip}`, limit: 5 });
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt);
+
   let body: unknown;
   try { body = await request.json(); } catch { return Response.json({ ok: true }); }
 

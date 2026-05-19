@@ -16,16 +16,21 @@ import { exportToExcel } from '@/features/export/exportExcel';
 import { exportToWord } from '@/features/export/exportWord';
 import { BILL_TYPE_LABELS } from '@/features/bills/billUtils';
 import type { BillType, BillStatus } from '@/types/bill';
-import { duplicateBill } from '@/features/bills/billApi';
+import { duplicateBill, orgDuplicateBill } from '@/features/bills/billApi';
 
 export function EditorToolbar() {
-  const { currentBill, saveBillNow, isSaving, isDirty, undo, redo, undoStack, redoStack, duplicateResult, showDuplicateWarning, updateBillMeta } = useBillStore();
-  const { setPreviewMode } = useEditorStore();
+  const { currentBill, saveBillNow, isSaving, isDirty, undo, redo, undoStack, redoStack, duplicateResult, updateBillMeta, orgId } = useBillStore();
+  useEditorStore(); // keep subscription for mode changes
   const router = useRouter();
   const [isExporting, setIsExporting] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
 
   if (!currentBill) return null;
+
+  const backHref = orgId ? `/orgs/${orgId}/bills` : '/bills';
+  const previewHref = orgId
+    ? `/orgs/${orgId}/bills/${currentBill.meta.id}/preview`
+    : `/bills/${currentBill.meta.id}/preview`;
 
   async function handleSave() {
     try {
@@ -54,9 +59,12 @@ export function EditorToolbar() {
   async function handleDuplicate() {
     if (!currentBill) return;
     try {
-      const newBill = await duplicateBill(currentBill.meta.id);
+      const newBill = orgId
+        ? await orgDuplicateBill(orgId, currentBill.meta.id)
+        : await duplicateBill(currentBill.meta.id);
       toast.success('Bill duplicated');
-      router.push(`/bills/${newBill.meta.id}`);
+      const dest = orgId ? `/orgs/${orgId}/bills/${newBill.meta.id}` : `/bills/${newBill.meta.id}`;
+      router.push(dest);
     } catch {
       toast.error('Duplicate failed');
     }
@@ -72,7 +80,7 @@ export function EditorToolbar() {
 
   return (
     <div className="flex items-center gap-2 px-4 py-2 border-b bg-background sticky top-0 z-10 flex-wrap">
-      <Link href="/bills">
+      <Link href={backHref}>
         <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -120,7 +128,7 @@ export function EditorToolbar() {
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={redo} disabled={!redoStack.length} title="Redo (⌘⇧Z)">
           <Redo2 className="h-3.5 w-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8" title="Preview" onClick={() => router.push(`/bills/${currentBill.meta.id}/preview`)}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" title="Preview" onClick={() => router.push(previewHref)}>
           <Eye className="h-3.5 w-3.5" />
         </Button>
         <Button variant="ghost" size="icon" className="h-8 w-8" title="Duplicate" onClick={handleDuplicate}>

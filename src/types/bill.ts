@@ -195,6 +195,7 @@ export interface BillMeta {
   billNumber: string;
   billType: BillType;
   status: BillStatus;
+  companyId?: string;
   templateId?: string;
   duplicatedFromId?: string;
   createdAt: string;

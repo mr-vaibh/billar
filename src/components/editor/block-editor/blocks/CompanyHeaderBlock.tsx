@@ -1,22 +1,92 @@
 'use client';
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useBillStore } from '@/store/billStore';
+import { useOrgSafe } from '@/components/layout/OrgProvider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Block, CompanyHeaderData } from '@/types/bill';
+import { Building2, Loader2 } from 'lucide-react';
+
+interface CompanyOption {
+  id: string; name: string; gstin: string | null; pan: string | null; cin: string | null;
+  tagline: string | null; address: string; city: string; state: string; pincode: string;
+  phone: string | null; email: string | null; website: string | null; logoBase64: string | null;
+}
 
 interface Props { block: Block & { type: 'company_header' } }
 
 export function CompanyHeaderBlock({ block }: Props) {
-  const { updateBlock } = useBillStore();
+  const { updateBlock, updateBillMeta } = useBillStore();
+  const org = useOrgSafe();
   const d = block.data;
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [companiesLoaded, setCompaniesLoaded] = useState(false);
 
   const update = useCallback((patch: Partial<CompanyHeaderData>) => {
     updateBlock(block.id, { ...d, ...patch });
   }, [block.id, d, updateBlock]);
 
+  useEffect(() => {
+    if (!org || companiesLoaded) return;
+    setLoadingCompanies(true);
+    fetch(`/api/orgs/${org.orgId}/companies`)
+      .then((r) => r.json())
+      .then((data) => {
+        setCompanies(data.filter((c: { isActive: boolean }) => c.isActive));
+        setCompaniesLoaded(true);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingCompanies(false));
+  }, [org?.orgId]); // eslint-disable-line
+
+  function fillFromCompany(companyId: string) {
+    const c = companies.find((c) => c.id === companyId);
+    if (!c) return;
+    updateBlock(block.id, {
+      ...d,
+      companyName: c.name,
+      tagline: c.tagline ?? '',
+      address: c.address,
+      city: c.city,
+      state: c.state,
+      pincode: c.pincode,
+      phone: c.phone ?? '',
+      email: c.email ?? '',
+      website: c.website ?? '',
+      gstin: c.gstin ?? '',
+      pan: c.pan ?? '',
+      cin: c.cin ?? '',
+      logo: c.logoBase64 ?? undefined,
+    });
+    updateBillMeta({ companyId });
+  }
+
   return (
     <div className="space-y-4">
+      {org && (
+        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md border border-dashed">
+          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground flex-1">Fill from company master</span>
+          <Select onValueChange={(v) => { if (typeof v === 'string') fillFromCompany(v); }}>
+            <SelectTrigger className="h-7 w-52 text-xs">
+              {loadingCompanies ? (
+                <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Loading…</span>
+              ) : (
+                <SelectValue placeholder="Pick a company…" />
+              )}
+            </SelectTrigger>
+            <SelectContent>
+              {companies.length === 0 && companiesLoaded && (
+                <SelectItem value="__none__" disabled>No active companies</SelectItem>
+              )}
+              {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Company Name *</Label>

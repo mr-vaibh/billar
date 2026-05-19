@@ -18,3 +18,7 @@ export function useOrg(): OrgContext {
   if (!ctx) throw new Error('useOrg must be used within OrgProvider');
   return ctx;
 }
+
+export function useOrgSafe(): OrgContext | null {
+  return useContext(Ctx);
+}

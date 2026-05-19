@@ -15,20 +15,23 @@ import { fetchBill } from '@/features/bills/billApi';
 interface Props {
   billId: string | null;
   initialBill: Bill | null;
+  orgId?: string;
+  defaultBillType?: string;
 }
 
-export function EditorShell({ billId, initialBill }: Props) {
-  const { newBill, currentBill, billIndex, loadBillIndex, saveBillNow, isDirty, setDuplicateResult, showDuplicateWarning } = useBillStore();
+export function EditorShell({ billId, initialBill, orgId, defaultBillType }: Props) {
+  const { newBill, currentBill, billIndex, loadBillIndex, saveBillNow, isDirty, setDuplicateResult, showDuplicateWarning, setOrgId } = useBillStore();
   const { mode } = useEditorStore();
   const { autoSave } = useSettingsStore();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize bill
   useEffect(() => {
+    setOrgId(orgId ?? null);
     if (initialBill) {
       useBillStore.setState({ currentBill: initialBill, isDirty: false });
     } else if (!billId) {
-      newBill();
+      newBill(defaultBillType ?? 'invoice');
     }
     loadBillIndex();
   }, [billId]); // eslint-disable-line

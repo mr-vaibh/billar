@@ -3,13 +3,17 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { Bill, Block, BlockType, BillMeta, DuplicateDetectionResult } from '@/types/bill';
 import { createNewBill, createDefaultBlock } from '@/features/bills/billUtils';
-import { saveBill, createBill, fetchBills, fetchBill } from '@/features/bills/billApi';
+import {
+  saveBill, createBill, fetchBills, fetchBill,
+  orgSaveBill, orgCreateBill, orgFetchBills, orgFetchBill,
+} from '@/features/bills/billApi';
 import { computeItemsTable, computeTaxSummary } from '@/features/gst/gstCalculator';
 import type { LineItem, ItemsTableData } from '@/types/bill';
 
 const MAX_UNDO = 50;
 
 interface BillState {
+  orgId: string | null;
   currentBill: Bill | null;
   billIndex: BillMeta[];
   isSaving: boolean;
@@ -21,6 +25,7 @@ interface BillState {
   lastSavedAt: Date | null;
 
   // Actions
+  setOrgId: (orgId: string | null) => void;
   loadBillIndex: () => Promise<void>;
   loadBill: (id: string) => Promise<void>;
   newBill: (type?: string, templateBlocks?: Bill['blocks']) => void;
@@ -42,6 +47,7 @@ interface BillState {
 
 export const useBillStore = create<BillState>()(
   immer((set, get) => ({
+    orgId: null,
     currentBill: null,
     billIndex: [],
     isSaving: false,
@@ -52,15 +58,19 @@ export const useBillStore = create<BillState>()(
     showDuplicateWarning: false,
     lastSavedAt: null,
 
+    setOrgId: (orgId) => set((s) => { s.orgId = orgId; }),
+
     loadBillIndex: async () => {
+      const { orgId } = get();
       try {
-        const metas = await fetchBills();
+        const metas = orgId ? await orgFetchBills(orgId) : await fetchBills();
         set((s) => { s.billIndex = metas; });
       } catch {}
     },
 
     loadBill: async (id) => {
-      const bill = await fetchBill(id);
+      const { orgId } = get();
+      const bill = orgId ? await orgFetchBill(orgId, id) : await fetchBill(id);
       set((s) => {
         s.currentBill = bill;
         s.isDirty = false;
@@ -81,7 +91,7 @@ export const useBillStore = create<BillState>()(
     },
 
     saveBillNow: async () => {
-      const { currentBill, billIndex } = get();
+      const { currentBill, billIndex, orgId } = get();
       if (!currentBill) return;
 
       set((s) => { s.isSaving = true; });
@@ -89,7 +99,9 @@ export const useBillStore = create<BillState>()(
         const now = new Date().toISOString();
         const billToSave = { ...currentBill, meta: { ...currentBill.meta, updatedAt: now } };
         const isNew = !billIndex.find((m) => m.id === currentBill.meta.id);
-        const saved = isNew ? await createBill(billToSave) : await saveBill(billToSave);
+        const saved = orgId
+          ? (isNew ? await orgCreateBill(orgId, billToSave) : await orgSaveBill(orgId, billToSave))
+          : (isNew ? await createBill(billToSave) : await saveBill(billToSave));
         set((s) => {
           s.currentBill = saved;
           s.isDirty = false;

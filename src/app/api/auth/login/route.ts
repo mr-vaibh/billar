@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { verifyPassword, createSession, setSessionCookie, getUserOrgs } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 
 const schema = z.object({
   email: z.string().email(),
@@ -9,6 +10,10 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
+  const rl = checkRateLimit({ key: `login:${ip}`, limit: 10 });
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt);
+
   let body: unknown;
   try {
     body = await request.json();

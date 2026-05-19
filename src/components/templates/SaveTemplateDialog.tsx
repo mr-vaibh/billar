@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,13 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useBillStore } from '@/store/billStore';
 import { saveTemplate } from '@/features/templates/templateApi';
+import { orgSaveTemplate } from '@/features/bills/billApi';
 import { generateId } from '@/lib/idGenerator';
 import type { Template } from '@/types/template';
 
 interface Props { open: boolean; onClose: () => void }
 
 export function SaveTemplateDialog({ open, onClose }: Props) {
-  const { currentBill } = useBillStore();
+  const { currentBill, orgId } = useBillStore();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
@@ -24,20 +25,35 @@ export function SaveTemplateDialog({ open, onClose }: Props) {
     if (!currentBill || !name.trim()) return;
     setSaving(true);
     try {
-      const now = new Date().toISOString();
-      const template: Template = {
-        id: generateId(),
-        name: name.trim(),
-        description: description.trim() || undefined,
-        billType: currentBill.meta.billType,
-        blocks: currentBill.blocks,
-        globalCanvasOverlay: currentBill.globalCanvasOverlay,
-        createdAt: now,
-        updatedAt: now,
-        isDefault: false,
-        tags: tags ? tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
-      };
-      await saveTemplate(template);
+      const tagList = tags ? tags.split(',').map((t) => t.trim()).filter(Boolean) : [];
+
+      if (orgId) {
+        await orgSaveTemplate(orgId, {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          billType: currentBill.meta.billType,
+          blocksJson: currentBill.blocks as never[],
+          globalCanvasJson: currentBill.globalCanvasOverlay,
+          tags: tagList,
+          isDefault: false,
+        });
+      } else {
+        const now = new Date().toISOString();
+        const template: Template = {
+          id: generateId(),
+          name: name.trim(),
+          description: description.trim() || undefined,
+          billType: currentBill.meta.billType,
+          blocks: currentBill.blocks,
+          globalCanvasOverlay: currentBill.globalCanvasOverlay,
+          createdAt: now,
+          updatedAt: now,
+          isDefault: false,
+          tags: tagList,
+        };
+        await saveTemplate(template);
+      }
+
       toast.success('Template saved!');
       onClose();
       setName('');
