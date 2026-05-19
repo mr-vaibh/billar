@@ -23,6 +23,8 @@ export function CompanyHeaderBlock({ block }: Props) {
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [companiesLoaded, setCompaniesLoaded] = useState(false);
+  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [allowOverride, setAllowOverride] = useState(true);
 
   const update = useCallback((patch: Partial<CompanyHeaderData>) => {
     updateBlock(block.id, { ...d, ...patch });
@@ -41,9 +43,18 @@ export function CompanyHeaderBlock({ block }: Props) {
       .finally(() => setLoadingCompanies(false));
   }, [org?.orgId]); // eslint-disable-line
 
+  useEffect(() => {
+    if (!org) return;
+    fetch(`/api/orgs/${org.orgId}/settings`)
+      .then((r) => r.json())
+      .then((s) => setAllowOverride(s.allowCompanyOverride ?? true))
+      .catch(() => {});
+  }, [org?.orgId]); // eslint-disable-line
+
   function fillFromCompany(companyId: string) {
     const c = companies.find((c) => c.id === companyId);
     if (!c) return;
+    setSelectedName(c.name);
     updateBlock(block.id, {
       ...d,
       companyName: c.name,
@@ -63,6 +74,8 @@ export function CompanyHeaderBlock({ block }: Props) {
     updateBillMeta({ companyId });
   }
 
+  const readOnly = !allowOverride && selectedName !== null;
+
   return (
     <div className="space-y-4">
       {org && (
@@ -73,6 +86,8 @@ export function CompanyHeaderBlock({ block }: Props) {
             <SelectTrigger className="h-7 w-52 text-xs">
               {loadingCompanies ? (
                 <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Loading…</span>
+              ) : selectedName ? (
+                <span>{selectedName}</span>
               ) : (
                 <SelectValue placeholder="Pick a company…" />
               )}
@@ -90,58 +105,58 @@ export function CompanyHeaderBlock({ block }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Company Name *</Label>
-          <Input value={d.companyName} onChange={(e) => update({ companyName: e.target.value })} placeholder="Your Company Pvt. Ltd." />
+          <Input value={d.companyName} onChange={(e) => update({ companyName: e.target.value })} placeholder="Your Company Pvt. Ltd." readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Tagline</Label>
-          <Input value={d.tagline || ''} onChange={(e) => update({ tagline: e.target.value })} placeholder="Your trusted partner" />
+          <Input value={d.tagline || ''} onChange={(e) => update({ tagline: e.target.value })} placeholder="Your trusted partner" readOnly={readOnly} />
         </div>
       </div>
       <div className="space-y-1">
         <Label className="text-xs">Address *</Label>
-        <Input value={d.address} onChange={(e) => update({ address: e.target.value })} placeholder="123, Main Street, Area" />
+        <Input value={d.address} onChange={(e) => update({ address: e.target.value })} placeholder="123, Main Street, Area" readOnly={readOnly} />
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">City *</Label>
-          <Input value={d.city} onChange={(e) => update({ city: e.target.value })} placeholder="Mumbai" />
+          <Input value={d.city} onChange={(e) => update({ city: e.target.value })} placeholder="Mumbai" readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">State *</Label>
-          <Input value={d.state} onChange={(e) => update({ state: e.target.value })} placeholder="Maharashtra" />
+          <Input value={d.state} onChange={(e) => update({ state: e.target.value })} placeholder="Maharashtra" readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">PIN Code *</Label>
-          <Input value={d.pincode} onChange={(e) => update({ pincode: e.target.value })} placeholder="400001" maxLength={6} />
+          <Input value={d.pincode} onChange={(e) => update({ pincode: e.target.value })} placeholder="400001" maxLength={6} readOnly={readOnly} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Phone *</Label>
-          <Input value={d.phone} onChange={(e) => update({ phone: e.target.value })} placeholder="+91 98765 43210" />
+          <Input value={d.phone} onChange={(e) => update({ phone: e.target.value })} placeholder="+91 98765 43210" readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Email *</Label>
-          <Input type="email" value={d.email} onChange={(e) => update({ email: e.target.value })} placeholder="info@company.com" />
+          <Input type="email" value={d.email} onChange={(e) => update({ email: e.target.value })} placeholder="info@company.com" readOnly={readOnly} />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">GSTIN *</Label>
-          <Input value={d.gstin} onChange={(e) => update({ gstin: e.target.value.toUpperCase() })} placeholder="22AAAAA0000A1Z5" maxLength={15} className="font-mono text-xs" />
+          <Input value={d.gstin} onChange={(e) => update({ gstin: e.target.value.toUpperCase() })} placeholder="22AAAAA0000A1Z5" maxLength={15} className="font-mono text-xs" readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">PAN *</Label>
-          <Input value={d.pan} onChange={(e) => update({ pan: e.target.value.toUpperCase() })} placeholder="AAAAA0000A" maxLength={10} className="font-mono text-xs" />
+          <Input value={d.pan} onChange={(e) => update({ pan: e.target.value.toUpperCase() })} placeholder="AAAAA0000A" maxLength={10} className="font-mono text-xs" readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">CIN (optional)</Label>
-          <Input value={d.cin || ''} onChange={(e) => update({ cin: e.target.value.toUpperCase() })} placeholder="U12345MH2000PTC000000" className="font-mono text-xs" />
+          <Input value={d.cin || ''} onChange={(e) => update({ cin: e.target.value.toUpperCase() })} placeholder="U12345MH2000PTC000000" className="font-mono text-xs" readOnly={readOnly} />
         </div>
       </div>
       <div className="space-y-1">
         <Label className="text-xs">Website (optional)</Label>
-        <Input value={d.website || ''} onChange={(e) => update({ website: e.target.value })} placeholder="https://www.yourcompany.com" />
+        <Input value={d.website || ''} onChange={(e) => update({ website: e.target.value })} placeholder="https://www.yourcompany.com" readOnly={readOnly} />
       </div>
     </div>
   );

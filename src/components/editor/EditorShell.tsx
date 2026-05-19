@@ -88,15 +88,17 @@ export function EditorShell({ billId, initialBill, orgId, defaultBillType }: Pro
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []); // eslint-disable-line
 
-  return (
-    <AppShell>
-      <div className="flex flex-col h-full">
-        <EditorToolbar />
-        <div className="flex-1 overflow-auto">
-          {mode === 'blocks' ? <BlockEditor /> : <BlockEditor />}
-        </div>
+  const content = (
+    <div className="flex flex-col h-full">
+      <EditorToolbar />
+      <div className="flex-1 overflow-auto">
+        <BlockEditor />
       </div>
       {showDuplicateWarning && <DuplicateWarningDialog />}
-    </AppShell>
+    </div>
   );
+
+  // Org layout already provides AppShell; only wrap when in standalone (legacy) mode
+  if (orgId) return content;
+  return <AppShell>{content}</AppShell>;
 }

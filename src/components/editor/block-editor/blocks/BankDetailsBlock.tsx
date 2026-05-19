@@ -23,6 +23,8 @@ export function BankDetailsBlock({ block }: Props) {
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+  const [allowOverride, setAllowOverride] = useState(true);
 
   const update = useCallback((patch: Partial<BankDetailsData>) => {
     updateBlock(block.id, { ...d, ...patch });
@@ -41,9 +43,18 @@ export function BankDetailsBlock({ block }: Props) {
       .finally(() => setLoadingAccounts(false));
   }, [org?.orgId]); // eslint-disable-line
 
+  useEffect(() => {
+    if (!org) return;
+    fetch(`/api/orgs/${org.orgId}/settings`)
+      .then((r) => r.json())
+      .then((s) => setAllowOverride(s.allowBankOverride ?? true))
+      .catch(() => {});
+  }, [org?.orgId]); // eslint-disable-line
+
   function fillFromAccount(accountId: string) {
     const a = accounts.find((a) => a.id === accountId);
     if (!a) return;
+    setSelectedLabel(`${a.label} — ${a.bankName}`);
     updateBlock(block.id, {
       ...d,
       accountHolderName: a.accountHolderName,
@@ -57,6 +68,8 @@ export function BankDetailsBlock({ block }: Props) {
     });
   }
 
+  const readOnly = !allowOverride && selectedLabel !== null;
+
   return (
     <div className="space-y-4">
       {org && (
@@ -67,6 +80,8 @@ export function BankDetailsBlock({ block }: Props) {
             <SelectTrigger className="h-7 w-52 text-xs">
               {loadingAccounts ? (
                 <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Loading…</span>
+              ) : selectedLabel ? (
+                <span>{selectedLabel}</span>
               ) : (
                 <SelectValue placeholder="Pick an account…" />
               )}
@@ -86,25 +101,25 @@ export function BankDetailsBlock({ block }: Props) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Account Holder Name *</Label>
-          <Input value={d.accountHolderName} onChange={(e) => update({ accountHolderName: e.target.value })} placeholder="Name as per bank records" />
+          <Input value={d.accountHolderName} onChange={(e) => update({ accountHolderName: e.target.value })} placeholder="Name as per bank records" readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Bank Name *</Label>
-          <Input value={d.bankName} onChange={(e) => update({ bankName: e.target.value })} placeholder="State Bank of India" />
+          <Input value={d.bankName} onChange={(e) => update({ bankName: e.target.value })} placeholder="State Bank of India" readOnly={readOnly} />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Account Number *</Label>
-          <Input value={d.accountNumber} onChange={(e) => update({ accountNumber: e.target.value })} placeholder="00000000000000" className="font-mono text-xs" />
+          <Input value={d.accountNumber} onChange={(e) => update({ accountNumber: e.target.value })} placeholder="00000000000000" className="font-mono text-xs" readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">IFSC Code *</Label>
-          <Input value={d.ifscCode} onChange={(e) => update({ ifscCode: e.target.value.toUpperCase() })} placeholder="SBIN0001234" maxLength={11} className="font-mono text-xs" />
+          <Input value={d.ifscCode} onChange={(e) => update({ ifscCode: e.target.value.toUpperCase() })} placeholder="SBIN0001234" maxLength={11} className="font-mono text-xs" readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Account Type *</Label>
-          <Select value={d.accountType} onValueChange={(v) => v && update({ accountType: v as BankDetailsData['accountType'] })}>
+          <Select value={d.accountType} onValueChange={(v) => { if (typeof v === 'string' && !readOnly) update({ accountType: v as BankDetailsData['accountType'] }); }}>
             <SelectTrigger className="h-9 text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -120,11 +135,11 @@ export function BankDetailsBlock({ block }: Props) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Branch Name</Label>
-          <Input value={d.branchName} onChange={(e) => update({ branchName: e.target.value })} placeholder="Branch name" />
+          <Input value={d.branchName} onChange={(e) => update({ branchName: e.target.value })} placeholder="Branch name" readOnly={readOnly} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">UPI ID (optional)</Label>
-          <Input value={d.upiId || ''} onChange={(e) => update({ upiId: e.target.value })} placeholder="yourname@upi" className="font-mono text-xs" />
+          <Input value={d.upiId || ''} onChange={(e) => update({ upiId: e.target.value })} placeholder="yourname@upi" className="font-mono text-xs" readOnly={readOnly} />
         </div>
       </div>
     </div>

@@ -112,7 +112,11 @@ export function AccountForm({ orgId, accountId, companies, initial, defaultCompa
           <Label>Company (optional)</Label>
           <Select value={form.companyId} onValueChange={(v) => set('companyId', !v || v === '__none__' ? '' : v)}>
             <SelectTrigger>
-              <SelectValue placeholder="Not linked to any company" />
+              <span className={!form.companyId || form.companyId === '__none__' ? 'text-muted-foreground text-sm' : 'text-sm'}>
+                {form.companyId && form.companyId !== '__none__'
+                  ? companies.find((c) => c.id === form.companyId)?.name ?? form.companyId
+                  : 'Not linked to any company'}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Not linked</SelectItem>
