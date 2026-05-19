@@ -1,0 +1,374 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum BillType {
+  invoice
+  proforma
+  credit_note
+  debit_note
+  delivery_challan
+  purchase_order
+  quotation
+}
+
+enum BillStatus {
+  draft
+  finalized
+  sent
+  paid
+  cancelled
+}
+
+enum GstMode {
+  cgst_sgst
+  igst
+}
+
+enum AccountType {
+  savings
+  current
+  cc
+  od
+}
+
+enum OrgStatus {
+  active
+  suspended
+  deleted
+}
+
+// ─── Core Identity ────────────────────────────────────────────────────────────
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  passwordHash       String
+  name               String
+  isSuperAdmin       Boolean  @default(false)
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  sessions     Session[]
+  memberships  OrgMembership[]
+  inviteTokens InviteToken[]
+  resetTokens  PasswordResetToken[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  orgId     String?
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model InviteToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  orgId     String
+  roleIds   String[] // role IDs to assign on acceptance
+  invitedBy String   // userId
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User?        @relation(fields: [invitedBy], references: [id])
+
+  @@index([token])
+  @@index([orgId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ─── Organization ─────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  status    OrgStatus @default(active)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  memberships       OrgMembership[]
+  roles             Role[]
+  companies         Company[]
+  financialAccounts FinancialAccount[]
+  bills             Bill[]
+  templates         Template[]
+  settings          OrgSettings?
+  invoiceSequences  InvoiceSequence[]
+  auditLogs         AuditLog[]
+  inviteTokens      InviteToken[]
+}
+
+model OrgMembership {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  org             Organization           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleAssignments MemberRoleAssignment[]
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+}
+
+// ─── RBAC ─────────────────────────────────────────────────────────────────────
+
+model Role {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org               Organization           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  rolePermissions   RolePermission[]
+  memberAssignments MemberRoleAssignment[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
+model RolePermission {
+  id         String @id @default(cuid())
+  roleId     String
+  permission String // e.g. "bills:create:invoice", "masters:read"
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permission])
+  @@index([roleId])
+}
+
+model MemberRoleAssignment {
+  id           String   @id @default(cuid())
+  membershipId String
+  roleId       String
+  assignedAt   DateTime @default(now())
+  assignedBy   String?
+
+  membership OrgMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  role       Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, roleId])
+  @@index([membershipId])
+  @@index([roleId])
+}
+
+// ─── Masters ──────────────────────────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  gstin     String?
+  pan       String?
+  cin       String?
+  tagline   String?
+  address   String
+  city      String
+  state     String
+  pincode   String
+  phone     String?
+  email     String?
+  website   String?
+  logoBase64 String? @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org               Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  financialAccounts FinancialAccount[]
+  bills             Bill[]
+
+  @@index([orgId])
+}
+
+model FinancialAccount {
+  id                String      @id @default(cuid())
+  orgId             String
+  companyId         String?
+  label             String
+  bankName          String
+  accountNumber     String
+  ifscCode          String
+  accountType       AccountType
+  branchName        String
+  accountHolderName String
+  upiId             String?
+  qrCodeBase64      String?     @db.Text
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  company Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([companyId])
+}
+
+// ─── Org Settings ─────────────────────────────────────────────────────────────
+
+model OrgSettings {
+  id                   String   @id @default(cuid())
+  orgId                String   @unique
+  defaultGstMode       GstMode  @default(cgst_sgst)
+  defaultIgstRate      Float    @default(18)
+  defaultCgstRate      Float    @default(9)
+  defaultSgstRate      Float    @default(9)
+  allowCompanyOverride Boolean  @default(false)
+  allowBankOverride    Boolean  @default(false)
+  updatedAt            DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+// ─── Invoice Sequences ────────────────────────────────────────────────────────
+
+model InvoiceSequence {
+  id            String   @id @default(cuid())
+  orgId         String
+  billType      BillType
+  financialYear String
+  prefix        String   @default("")
+  typeCode      String
+  zeroPadding   Int      @default(4)
+  currentValue  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  org     Organization             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  history InvoiceSequenceHistory[]
+
+  @@unique([orgId, billType, financialYear])
+  @@index([orgId])
+}
+
+model InvoiceSequenceHistory {
+  id            String   @id @default(cuid())
+  sequenceId    String
+  previousValue Int
+  newValue      Int
+  reason        String
+  performedBy   String
+  performedAt   DateTime @default(now())
+
+  sequence InvoiceSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@index([sequenceId])
+}
+
+// ─── Bills & Templates ────────────────────────────────────────────────────────
+
+model Bill {
+  id               String     @id @default(cuid())
+  orgId            String
+  companyId        String?
+  legacyId         String?
+  billNumber       String
+  billType         BillType
+  status           BillStatus @default(draft)
+  financialYear    String
+  templateId       String?
+  duplicatedFromId String?
+  currency         String     @default("INR")
+  buyerName        String?
+  grandTotal       Float?
+  tags             String[]
+  blocksJson       Json
+  globalCanvasJson Json?
+  schemaVersion    Int        @default(1)
+  createdBy        String
+  updatedBy        String
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  company Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([orgId, billNumber, financialYear])
+  @@index([orgId])
+  @@index([orgId, billType])
+  @@index([orgId, status])
+  @@index([createdBy])
+}
+
+model Template {
+  id               String   @id @default(cuid())
+  orgId            String
+  legacyId         String?
+  name             String
+  description      String?
+  thumbnail        String?
+  billType         BillType
+  blocksJson       Json
+  globalCanvasJson Json?
+  isDefault        Boolean  @default(false)
+  tags             String[]
+  createdBy        String
+  updatedBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([orgId, billType])
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String
+  userId     String
+  action     String
+  resourceId String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([orgId, userId])
+  @@index([orgId, resourceId])
+}

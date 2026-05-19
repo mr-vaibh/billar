@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: billar-db
+    environment:
+      POSTGRES_USER: billar
+      POSTGRES_PASSWORD: billar_secret
+      POSTGRES_DB: billar
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billar"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  billar:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: billar
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://billar:billar_secret@postgres:5432/billar
+      - NEXT_PUBLIC_APP_NAME=Billar
+      - SESSION_SECRET=change_me_in_production_min_32_chars
+      - RESEND_API_KEY=re_your_key_here
+      - APP_URL=http://localhost:3000
+      - SEED_ADMIN_EMAIL=admin@billar.app
+      - SEED_ADMIN_PASSWORD=change_me_on_first_login
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  pg_data:
+    driver: local
