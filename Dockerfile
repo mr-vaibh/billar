@@ -21,10 +21,25 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy built output
+# Copy built Next.js output
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy Prisma schema, config, seed, and binaries so migrate+seed can run at startup
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder /app/node_modules/.bin/tsx ./node_modules/.bin/tsx
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/tsx ./node_modules/tsx
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+
+# Entrypoint runs migrations + seed then starts the server
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x docker-entrypoint.sh && chown nextjs:nodejs docker-entrypoint.sh
 
 # Create data directories
 RUN mkdir -p /data/bills /data/templates && chown -R nextjs:nodejs /data
@@ -37,4 +52,4 @@ ENV HOSTNAME="0.0.0.0"
 ENV BILLS_DIR=/data/bills
 ENV TEMPLATES_DIR=/data/templates
 
-CMD ["node", "server.js"]
+CMD ["./docker-entrypoint.sh"]
