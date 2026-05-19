@@ -57,6 +57,7 @@ export function OrgSettingsClient({ orgId, initialSettings, initialSequences, ca
   const [settings, setSettings] = useState(initialSettings);
   const [sequences, setSequences] = useState(initialSequences);
   const [saving, setSaving] = useState(false);
+  const isDirty = JSON.stringify(settings) !== JSON.stringify(initialSettings);
   const [resetTarget, setResetTarget] = useState<Sequence | null>(null);
   const [resetValue, setResetValue] = useState('0');
   const [resetReason, setResetReason] = useState('');
@@ -208,7 +209,7 @@ export function OrgSettingsClient({ orgId, initialSettings, initialSequences, ca
       </section>
 
       {canEdit && (
-        <Button onClick={handleSaveSettings} disabled={saving}>{saving ? 'Saving…' : 'Save Settings'}</Button>
+        <Button onClick={handleSaveSettings} disabled={saving || !isDirty}>{saving ? 'Saving…' : 'Save Settings'}</Button>
       )}
 
       <Separator />

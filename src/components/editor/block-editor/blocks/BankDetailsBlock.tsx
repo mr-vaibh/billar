@@ -5,6 +5,7 @@ import { useOrgSafe } from '@/components/layout/OrgProvider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import type { Block, BankDetailsData } from '@/types/bill';
 import { CreditCard, Loader2 } from 'lucide-react';
 
@@ -36,8 +37,15 @@ export function BankDetailsBlock({ block }: Props) {
     fetch(`/api/orgs/${org.orgId}/financial-accounts`)
       .then((r) => r.json())
       .then((data) => {
-        setAccounts(data.filter((a: { isActive: boolean }) => a.isActive));
+        const active = data.filter((a: { isActive: boolean }) => a.isActive);
+        setAccounts(active);
         setAccountsLoaded(true);
+        // Restore display label from saved block data on refresh
+        // Match by account number since we don't store accountId in block data
+        if (d.accountNumber) {
+          const match = active.find((a: AccountOption) => a.accountNumber === d.accountNumber);
+          if (match) setSelectedLabel(`${match.label} — ${match.bankName}`);
+        }
       })
       .catch(() => {})
       .finally(() => setLoadingAccounts(false));
@@ -69,6 +77,7 @@ export function BankDetailsBlock({ block }: Props) {
   }
 
   const readOnly = !allowOverride && selectedLabel !== null;
+  const inputClass = readOnly ? 'bg-muted cursor-not-allowed' : '';
 
   return (
     <div className="space-y-4">
@@ -101,26 +110,26 @@ export function BankDetailsBlock({ block }: Props) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Account Holder Name *</Label>
-          <Input value={d.accountHolderName} onChange={(e) => update({ accountHolderName: e.target.value })} placeholder="Name as per bank records" readOnly={readOnly} />
+          <Input value={d.accountHolderName} onChange={(e) => update({ accountHolderName: e.target.value })} placeholder="Name as per bank records" readOnly={readOnly} className={inputClass} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Bank Name *</Label>
-          <Input value={d.bankName} onChange={(e) => update({ bankName: e.target.value })} placeholder="State Bank of India" readOnly={readOnly} />
+          <Input value={d.bankName} onChange={(e) => update({ bankName: e.target.value })} placeholder="State Bank of India" readOnly={readOnly} className={inputClass} />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Account Number *</Label>
-          <Input value={d.accountNumber} onChange={(e) => update({ accountNumber: e.target.value })} placeholder="00000000000000" className="font-mono text-xs" readOnly={readOnly} />
+          <Input value={d.accountNumber} onChange={(e) => update({ accountNumber: e.target.value })} placeholder="00000000000000" readOnly={readOnly} className={cn('font-mono text-xs', inputClass)} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">IFSC Code *</Label>
-          <Input value={d.ifscCode} onChange={(e) => update({ ifscCode: e.target.value.toUpperCase() })} placeholder="SBIN0001234" maxLength={11} className="font-mono text-xs" readOnly={readOnly} />
+          <Input value={d.ifscCode} onChange={(e) => update({ ifscCode: e.target.value.toUpperCase() })} placeholder="SBIN0001234" maxLength={11} readOnly={readOnly} className={cn('font-mono text-xs', inputClass)} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Account Type *</Label>
           <Select value={d.accountType} onValueChange={(v) => { if (typeof v === 'string' && !readOnly) update({ accountType: v as BankDetailsData['accountType'] }); }}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className={cn('h-9 text-xs', inputClass)}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -135,11 +144,11 @@ export function BankDetailsBlock({ block }: Props) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Branch Name</Label>
-          <Input value={d.branchName} onChange={(e) => update({ branchName: e.target.value })} placeholder="Branch name" readOnly={readOnly} />
+          <Input value={d.branchName} onChange={(e) => update({ branchName: e.target.value })} placeholder="Branch name" readOnly={readOnly} className={inputClass} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">UPI ID (optional)</Label>
-          <Input value={d.upiId || ''} onChange={(e) => update({ upiId: e.target.value })} placeholder="yourname@upi" className="font-mono text-xs" readOnly={readOnly} />
+          <Input value={d.upiId || ''} onChange={(e) => update({ upiId: e.target.value })} placeholder="yourname@upi" readOnly={readOnly} className={cn('font-mono text-xs', inputClass)} />
         </div>
       </div>
     </div>
