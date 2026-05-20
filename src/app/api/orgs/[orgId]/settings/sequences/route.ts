@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const sequences = await db.invoiceSequence.findMany({
     where: { orgId },
     orderBy: [{ billType: 'asc' }, { financialYear: 'desc' }],
-    include: { history: { orderBy: { performedAt: 'desc' }, take: 5 } },
+    include: { history: { orderBy: { performedAt: 'desc' } } },
   });
 
   return Response.json(sequences);

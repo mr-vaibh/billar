@@ -9,10 +9,6 @@ import { writeAuditLog } from '@/lib/audit';
 
 type Params = { params: Promise<{ orgId: string }> };
 
-const TYPE_CODES: Record<string, string> = {
-  invoice: 'INV', proforma: 'PRF', credit_note: 'CN',
-  debit_note: 'DN', delivery_challan: 'DC', purchase_order: 'PO', quotation: 'QT',
-};
 
 function extractBlocksMeta(blocks: Block[]) {
   let buyerName: string | undefined;
@@ -112,46 +108,26 @@ export async function POST(request: NextRequest, { params }: Params) {
   const date = billDate ? new Date(billDate) : new Date();
   const financialYear = getFinancialYear(isNaN(date.getTime()) ? new Date() : date);
 
-  const bill = await db.$transaction(async (tx) => {
-    // Atomically reserve invoice number
-    const seq = await tx.invoiceSequence.upsert({
-      where: { orgId_billType_financialYear: { orgId, billType: parsed.data.billType, financialYear } },
-      create: {
-        orgId,
-        billType: parsed.data.billType,
-        financialYear,
-        prefix: '',
-        typeCode: TYPE_CODES[parsed.data.billType] ?? 'DOC',
-        zeroPadding: 4,
-        currentValue: 1,
-      },
-      update: { currentValue: { increment: 1 } },
-      select: { currentValue: true, prefix: true, typeCode: true, zeroPadding: true },
-    });
-
-    const billNumber = `${seq.prefix}${seq.typeCode}-${financialYear}-${String(seq.currentValue).padStart(seq.zeroPadding, '0')}`;
-
-    return tx.bill.create({
-      data: {
-        orgId,
-        billNumber,
-        billType: parsed.data.billType,
-        status: parsed.data.status,
-        financialYear,
-        companyId: parsed.data.companyId ?? null,
-        templateId: parsed.data.templateId ?? null,
-        duplicatedFromId: parsed.data.duplicatedFromId ?? null,
-        currency: parsed.data.currency,
-        tags: parsed.data.tags,
-        blocksJson: parsed.data.blocksJson as never,
-        globalCanvasJson: (parsed.data.globalCanvasJson ?? undefined) as never,
-        schemaVersion: parsed.data.schemaVersion,
-        buyerName: buyerName ?? null,
-        grandTotal: grandTotal ?? null,
-        createdBy: user.id,
-        updatedBy: user.id,
-      },
-    });
+  const bill = await db.bill.create({
+    data: {
+      orgId,
+      billNumber: '',
+      billType: parsed.data.billType,
+      status: parsed.data.status,
+      financialYear,
+      companyId: parsed.data.companyId ?? null,
+      templateId: parsed.data.templateId ?? null,
+      duplicatedFromId: parsed.data.duplicatedFromId ?? null,
+      currency: parsed.data.currency,
+      tags: parsed.data.tags,
+      blocksJson: parsed.data.blocksJson as never,
+      globalCanvasJson: (parsed.data.globalCanvasJson ?? undefined) as never,
+      schemaVersion: parsed.data.schemaVersion,
+      buyerName: buyerName ?? null,
+      grandTotal: grandTotal ?? null,
+      createdBy: user.id,
+      updatedBy: user.id,
+    },
   });
 
   await writeAuditLog({ orgId, userId: user.id, action: 'bill:create', resourceId: bill.id });

@@ -22,7 +22,7 @@ export default async function CompaniesPage({ params }: { params: Promise<{ orgI
 
   const companies = await db.company.findMany({
     where: { orgId },
-    include: { _count: { select: { financialAccounts: { where: { isActive: true } } } } },
+    include: { _count: { select: { bankAccounts: { where: { isActive: true } } } } },
     orderBy: { name: 'asc' },
   });
 
@@ -33,7 +33,7 @@ export default async function CompaniesPage({ params }: { params: Promise<{ orgI
     city: c.city,
     state: c.state,
     isActive: c.isActive,
-    accountCount: c._count.financialAccounts,
+    accountCount: c._count.bankAccounts,
   }));
 
   return (

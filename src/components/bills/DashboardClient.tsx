@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -8,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { BillMeta } from '@/types/bill';
 import { deleteBill, duplicateBill } from '@/features/bills/billApi';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { BILL_TYPE_LABELS } from '@/features/bills/billUtils';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -26,6 +28,8 @@ interface Props {
 
 export function DashboardClient({ stats, recentBills }: Props) {
   const router = useRouter();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function handleDuplicate(id: string) {
     try {
@@ -37,18 +41,22 @@ export function DashboardClient({ stats, recentBills }: Props) {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this bill permanently?')) return;
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteBill(id);
+      await deleteBill(deleteTarget);
       toast.success('Bill deleted');
       router.refresh();
     } catch {
       toast.error('Failed to delete');
     }
+    setDeleting(false);
+    setDeleteTarget(null);
   }
 
   return (
+    <>
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -92,7 +100,7 @@ export function DashboardClient({ stats, recentBills }: Props) {
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm truncate">{bill.billNumber || 'Untitled'}</span>
+                        <span className="font-medium text-sm truncate">{bill.billNumber || <span className="text-muted-foreground italic">Draft</span>}</span>
                         <Badge variant="outline" className="text-xs shrink-0">{BILL_TYPE_LABELS[bill.billType] || bill.billType}</Badge>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLORS[bill.status] || 'bg-gray-100'}`}>
                           {bill.status}
@@ -114,7 +122,7 @@ export function DashboardClient({ stats, recentBills }: Props) {
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDuplicate(bill.id)}>
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(bill.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(bill.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -125,6 +133,16 @@ export function DashboardClient({ stats, recentBills }: Props) {
         </CardContent>
       </Card>
     </div>
+    <ConfirmDialog
+      open={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={handleDelete}
+      title="Delete bill?"
+      description="This bill will be permanently deleted. This cannot be undone."
+      confirmLabel="Delete Bill"
+      loading={deleting}
+    />
+    </>
   );
 }
 

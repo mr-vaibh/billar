@@ -16,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const company = await db.company.findUnique({
     where: { id: companyId },
     include: {
-      financialAccounts: {
+      bankAccounts: {
         where: { isActive: true },
         orderBy: { label: 'asc' },
       },

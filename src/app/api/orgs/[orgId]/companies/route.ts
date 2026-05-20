@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const companies = await db.company.findMany({
     where: { orgId },
-    include: { _count: { select: { financialAccounts: { where: { isActive: true } } } } },
+    include: { _count: { select: { bankAccounts: { where: { isActive: true } } } } },
     orderBy: { name: 'asc' },
   });
 
@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     tagline: c.tagline, address: c.address, city: c.city, state: c.state,
     pincode: c.pincode, phone: c.phone, email: c.email, website: c.website,
     logoBase64: c.logoBase64, isActive: c.isActive,
-    accountCount: c._count.financialAccounts,
+    accountCount: c._count.bankAccounts,
     createdAt: c.createdAt, updatedAt: c.updatedAt,
   })));
 }

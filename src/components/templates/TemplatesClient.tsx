@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { Template } from '@/types/template';
 import { deleteTemplate } from '@/features/templates/templateApi';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { BILL_TYPE_LABELS } from '@/features/bills/billUtils';
 import { formatDistanceToNow } from 'date-fns';
 import { createBill } from '@/features/bills/billApi';
@@ -24,6 +25,8 @@ export function TemplatesClient({ initialTemplates }: Props) {
   const [templates, setTemplates] = useState(initialTemplates);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Template | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function handleUseTemplate(template: Template) {
     try {
@@ -39,18 +42,22 @@ export function TemplatesClient({ initialTemplates }: Props) {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this template?')) return;
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteTemplate(id);
-      setTemplates((prev) => prev.filter((t) => t.id !== id));
+      await deleteTemplate(deleteTarget.id);
+      setTemplates((prev) => prev.filter((t) => t.id !== deleteTarget.id));
       toast.success('Template deleted');
     } catch {
       toast.error('Failed to delete template');
     }
+    setDeleting(false);
+    setDeleteTarget(null);
   }
 
   return (
+    <>
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -95,7 +102,7 @@ export function TemplatesClient({ initialTemplates }: Props) {
                   <Button size="sm" className="flex-1 gap-1.5" onClick={() => handleUseTemplate(template)}>
                     <FileText className="h-3.5 w-3.5" />Use Template
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(template.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(template)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -105,5 +112,15 @@ export function TemplatesClient({ initialTemplates }: Props) {
         </div>
       )}
     </div>
+    <ConfirmDialog
+      open={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={handleDelete}
+      title="Delete template?"
+      description={`"${deleteTarget?.name}" will be permanently deleted.`}
+      confirmLabel="Delete Template"
+      loading={deleting}
+    />
+    </>
   );
 }

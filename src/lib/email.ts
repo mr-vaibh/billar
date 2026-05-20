@@ -31,6 +31,20 @@ export async function sendInviteEmail({
   });
 }
 
+export async function sendInvoiceEmail({ to, orgName, billNumber, shareUrl }: { to: string; orgName: string; billNumber: string; shareUrl: string }) {
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Invoice ${billNumber} from ${orgName}`,
+    html: `
+      <p>Hi,</p>
+      <p>Please find your invoice <strong>${billNumber}</strong> from <strong>${orgName}</strong>.</p>
+      <p><a href="${shareUrl}" style="background:#000;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;">View &amp; Download Invoice</a></p>
+      <p>Or copy this URL: ${shareUrl}</p>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail({
   to,
   name,

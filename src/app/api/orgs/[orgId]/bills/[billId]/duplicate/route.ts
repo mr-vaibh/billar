@@ -2,16 +2,10 @@ import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getPermissions } from '@/lib/permissions';
 import { db } from '@/lib/db';
-import { getFinancialYear } from '@/lib/orgSetup';
 import type { Block, BillType } from '@/types/bill';
 import { writeAuditLog } from '@/lib/audit';
 
 type Params = { params: Promise<{ orgId: string; billId: string }> };
-
-const TYPE_CODES: Record<string, string> = {
-  invoice: 'INV', proforma: 'PRF', credit_note: 'CN',
-  debit_note: 'DN', delivery_challan: 'DC', purchase_order: 'PO', quotation: 'QT',
-};
 
 export async function POST(_req: NextRequest, { params }: Params) {
   const { orgId, billId } = await params;
@@ -27,42 +21,31 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const financialYear = getFinancialYear(new Date());
+  // Clear the bill number from the duplicated blocks so the copy gets a fresh number on finalize
+  const clearedBlocks = (source.blocksJson as unknown as Block[]).map((b) =>
+    b.type === 'order_info' ? { ...b, data: { ...b.data, billNumber: '' } } : b
+  );
 
-  const newBill = await db.$transaction(async (tx) => {
-    const seq = await tx.invoiceSequence.upsert({
-      where: { orgId_billType_financialYear: { orgId, billType: source.billType, financialYear } },
-      create: {
-        orgId, billType: source.billType, financialYear,
-        prefix: '', typeCode: TYPE_CODES[source.billType] ?? 'DOC', zeroPadding: 4, currentValue: 1,
-      },
-      update: { currentValue: { increment: 1 } },
-      select: { currentValue: true, prefix: true, typeCode: true, zeroPadding: true },
-    });
-
-    const billNumber = `${seq.prefix}${seq.typeCode}-${financialYear}-${String(seq.currentValue).padStart(seq.zeroPadding, '0')}`;
-
-    return tx.bill.create({
-      data: {
-        orgId,
-        billNumber,
-        billType: source.billType,
-        status: 'draft',
-        financialYear,
-        companyId: source.companyId,
-        templateId: source.templateId,
-        duplicatedFromId: source.id,
-        currency: source.currency,
-        tags: source.tags,
-        blocksJson: source.blocksJson as never,
-        globalCanvasJson: (source.globalCanvasJson ?? undefined) as never,
-        schemaVersion: source.schemaVersion,
-        buyerName: source.buyerName,
-        grandTotal: source.grandTotal,
-        createdBy: user.id,
-        updatedBy: user.id,
-      },
-    });
+  const newBill = await db.bill.create({
+    data: {
+      orgId,
+      billNumber: '',
+      billType: source.billType,
+      status: 'draft',
+      financialYear: source.financialYear,
+      companyId: source.companyId,
+      templateId: source.templateId,
+      duplicatedFromId: source.id,
+      currency: source.currency,
+      tags: source.tags,
+      blocksJson: clearedBlocks as never,
+      globalCanvasJson: (source.globalCanvasJson ?? undefined) as never,
+      schemaVersion: source.schemaVersion,
+      buyerName: source.buyerName,
+      grandTotal: source.grandTotal,
+      createdBy: user.id,
+      updatedBy: user.id,
+    },
   });
 
   await writeAuditLog({ orgId, userId: user.id, action: 'bill:duplicate', resourceId: newBill.id, meta: { sourceId: billId } });

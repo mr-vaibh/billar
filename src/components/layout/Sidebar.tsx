@@ -2,14 +2,16 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { FileText, LayoutTemplate, Home, Settings, PlusCircle, Receipt, Building2, LogOut, CreditCard, Users, Shield } from 'lucide-react';
+import { FileText, LayoutTemplate, Home, Settings, PlusCircle, Receipt, Building2, LogOut, CreditCard, Users, UserCircle, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Props {
   orgId?: string;
+  userName?: string;
+  userEmail?: string;
 }
 
-export function Sidebar({ orgId }: Props) {
+export function Sidebar({ orgId, userName, userEmail }: Props) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -20,7 +22,8 @@ export function Sidebar({ orgId }: Props) {
     { href: `${base}/bills`, label: 'All Bills', icon: FileText },
     { href: `${base}/templates`, label: 'Templates', icon: LayoutTemplate },
     { href: `${base}/masters/companies`, label: 'Companies', icon: Building2 },
-    { href: `${base}/masters/financial-accounts`, label: 'Accounts', icon: CreditCard },
+    { href: `${base}/masters/customers`, label: 'Customers', icon: UserCircle },
+    { href: `${base}/masters/bank-accounts`, label: 'Bank Accounts', icon: CreditCard },
     { href: `${base}/users`, label: 'Members', icon: Users },
     { href: `${base}/roles`, label: 'Roles', icon: Shield },
   ];
@@ -48,7 +51,7 @@ export function Sidebar({ orgId }: Props) {
         </div>
       )}
 
-      <nav className="flex-1 px-2 space-y-0.5">
+      <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link key={href} href={href}>
             <span className={cn(
@@ -78,6 +81,27 @@ export function Sidebar({ orgId }: Props) {
             </span>
           </Link>
         )}
+
+        {/* User profile */}
+        {orgId && userName && (
+          <Link href={`${base}/profile`}>
+            <span className={cn(
+              'flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors',
+              pathname.startsWith(`${base}/profile`)
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            )}>
+              <div className="h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate text-foreground">{userName}</p>
+                <p className="text-[10px] truncate text-muted-foreground">{userEmail}</p>
+              </div>
+            </span>
+          </Link>
+        )}
+
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-2.5 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"

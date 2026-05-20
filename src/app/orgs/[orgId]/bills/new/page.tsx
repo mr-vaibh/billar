@@ -1,17 +1,19 @@
 import { getSession } from '@/lib/auth';
 import { getPermissions } from '@/lib/permissions';
+import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { EditorShell } from '@/components/editor/EditorShell';
+import type { Block, BillType } from '@/types/bill';
 
 export default async function NewOrgBillPage({
   params,
   searchParams,
 }: {
   params: Promise<{ orgId: string }>;
-  searchParams: Promise<{ type?: string }>;
+  searchParams: Promise<{ type?: string; templateId?: string }>;
 }) {
   const { orgId } = await params;
-  const { type } = await searchParams;
+  const { type, templateId } = await searchParams;
   const user = await getSession();
   if (!user) redirect('/login');
 
@@ -25,5 +27,21 @@ export default async function NewOrgBillPage({
     );
   }
 
-  return <EditorShell billId={null} initialBill={null} orgId={orgId} defaultBillType={billType} />;
+  let initialTemplateBlocks: Block[] | undefined;
+  if (templateId) {
+    const template = await db.template.findUnique({ where: { id: templateId, orgId } });
+    if (template) {
+      initialTemplateBlocks = template.blocksJson as unknown as Block[];
+    }
+  }
+
+  return (
+    <EditorShell
+      billId={null}
+      initialBill={null}
+      orgId={orgId}
+      defaultBillType={billType}
+      initialTemplateBlocks={initialTemplateBlocks}
+    />
+  );
 }

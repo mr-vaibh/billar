@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useBillStore } from '@/store/billStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import type { Bill } from '@/types/bill';
+import type { Bill, Block } from '@/types/bill';
 import { BlockEditor } from './block-editor/BlockEditor';
 import { EditorToolbar } from './EditorToolbar';
 import { DuplicateWarningDialog } from '@/components/bills/DuplicateWarningDialog';
@@ -17,13 +18,16 @@ interface Props {
   initialBill: Bill | null;
   orgId?: string;
   defaultBillType?: string;
+  initialTemplateBlocks?: Block[];
 }
 
-export function EditorShell({ billId, initialBill, orgId, defaultBillType }: Props) {
+export function EditorShell({ billId, initialBill, orgId, defaultBillType, initialTemplateBlocks }: Props) {
   const { newBill, currentBill, billIndex, loadBillIndex, saveBillNow, isDirty, setDuplicateResult, showDuplicateWarning, setOrgId } = useBillStore();
   const { mode } = useEditorStore();
   const { autoSave } = useSettingsStore();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasRedirectedRef = useRef(false);
+  const router = useRouter();
 
   // Initialize bill
   useEffect(() => {
@@ -31,7 +35,7 @@ export function EditorShell({ billId, initialBill, orgId, defaultBillType }: Pro
     if (initialBill) {
       useBillStore.setState({ currentBill: initialBill, isDirty: false });
     } else if (!billId) {
-      newBill(defaultBillType ?? 'invoice');
+      newBill(defaultBillType ?? 'invoice', initialTemplateBlocks);
     }
     loadBillIndex();
   }, [billId]); // eslint-disable-line
@@ -53,12 +57,15 @@ export function EditorShell({ billId, initialBill, orgId, defaultBillType }: Pro
     saveTimerRef.current = setTimeout(async () => {
       try {
         await saveBillNow();
+        // After first save of a new bill, update URL to include the bill ID
+        if (!billId && !hasRedirectedRef.current && orgId) {
+          hasRedirectedRef.current = true;
+          const id = useBillStore.getState().currentBill?.meta.id;
+          if (id) router.replace(`/orgs/${orgId}/bills/${id}`);
+        }
         // Run duplicate detection after save
         if (billIndex.length > 0 && currentBill) {
-          const result = detectDuplicates(currentBill, billIndex, (id) => {
-            // Synchronous lookup from index won't have full bill, skip for now
-            return null;
-          });
+          const result = detectDuplicates(currentBill, billIndex, () => null);
           setDuplicateResult(result);
         }
       } catch {
@@ -73,7 +80,14 @@ export function EditorShell({ billId, initialBill, orgId, defaultBillType }: Pro
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        saveBillNow().then(() => toast.success('Saved')).catch(() => toast.error('Save failed'));
+        saveBillNow().then(() => {
+          toast.success('Saved');
+          if (!billId && !hasRedirectedRef.current && orgId) {
+            hasRedirectedRef.current = true;
+            const id = useBillStore.getState().currentBill?.meta.id;
+            if (id) router.replace(`/orgs/${orgId}/bills/${id}`);
+          }
+        }).catch(() => toast.error('Save failed'));
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
         e.preventDefault();

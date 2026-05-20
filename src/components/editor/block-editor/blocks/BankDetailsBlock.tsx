@@ -34,7 +34,7 @@ export function BankDetailsBlock({ block }: Props) {
   useEffect(() => {
     if (!org || accountsLoaded) return;
     setLoadingAccounts(true);
-    fetch(`/api/orgs/${org.orgId}/financial-accounts`)
+    fetch(`/api/orgs/${org.orgId}/bank-accounts`)
       .then((r) => r.json())
       .then((data) => {
         const active = data.filter((a: { isActive: boolean }) => a.isActive);

@@ -84,7 +84,7 @@ export const useBillStore = create<BillState>()(
       if (templateBlocks) bill.blocks = templateBlocks;
       set((s) => {
         s.currentBill = bill;
-        s.isDirty = true;
+        s.isDirty = false;
         s.undoStack = [];
         s.redoStack = [];
       });

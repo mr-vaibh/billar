@@ -21,8 +21,14 @@ export default async function OrgBillPreviewPage({
     return <div className="p-8 text-sm text-muted-foreground">You don't have permission to view bills.</div>;
   }
 
-  const bill = await db.bill.findUnique({ where: { id: billId } });
+  const [bill, payments] = await Promise.all([
+    db.bill.findUnique({ where: { id: billId } }),
+    db.payment.findMany({ where: { billId }, orderBy: { paidAt: 'desc' } }),
+  ]);
+
   if (!bill || bill.orgId !== orgId) notFound();
+
+  const canEdit = perms.has('bills:edit');
 
   const initialBill: Bill = {
     meta: {
@@ -45,5 +51,21 @@ export default async function OrgBillPreviewPage({
     schemaVersion: bill.schemaVersion,
   };
 
-  return <BillPreviewPage bill={initialBill} />;
+  const serializedPayments = payments.map((p) => ({
+    id: p.id,
+    amount: p.amount,
+    paidAt: p.paidAt.toISOString(),
+    mode: p.mode,
+    reference: p.reference,
+    notes: p.notes,
+  }));
+
+  return (
+    <BillPreviewPage
+      bill={initialBill}
+      orgId={orgId}
+      payments={serializedPayments}
+      canEdit={canEdit}
+    />
+  );
 }

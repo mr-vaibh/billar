@@ -3,8 +3,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Save, Undo2, Redo2, Eye, ChevronLeft, Download, Copy, AlertTriangle, CheckCircle, Loader2, LayoutTemplate } from 'lucide-react';
+import { Save, Undo2, Redo2, Eye, ChevronLeft, Download, Copy, AlertTriangle, CheckCircle, Loader2, LayoutTemplate, Send } from 'lucide-react';
 import { SaveTemplateDialog } from '@/components/templates/SaveTemplateDialog';
+import { SendInvoiceDialog } from '@/components/bills/SendInvoiceDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -24,6 +25,7 @@ export function EditorToolbar() {
   const router = useRouter();
   const [isExporting, setIsExporting] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
 
   if (!currentBill) return null;
 
@@ -131,6 +133,11 @@ export function EditorToolbar() {
         <Button variant="ghost" size="icon" className="h-8 w-8" title="Preview" onClick={() => router.push(previewHref)}>
           <Eye className="h-3.5 w-3.5" />
         </Button>
+        {orgId && (
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Send Invoice" onClick={() => setSendOpen(true)}>
+            <Send className="h-3.5 w-3.5" />
+          </Button>
+        )}
         <Button variant="ghost" size="icon" className="h-8 w-8" title="Duplicate" onClick={handleDuplicate}>
           <Copy className="h-3.5 w-3.5" />
         </Button>
@@ -154,6 +161,16 @@ export function EditorToolbar() {
         </Button>
       </div>
       <SaveTemplateDialog open={saveTemplateOpen} onClose={() => setSaveTemplateOpen(false)} />
+      {orgId && currentBill && (
+        <SendInvoiceDialog
+          open={sendOpen}
+          onClose={() => setSendOpen(false)}
+          orgId={orgId}
+          billId={currentBill.meta.id}
+          billNumber={currentBill.meta.billNumber}
+          buyerEmail=""
+        />
+      )}
     </div>
   );
 }

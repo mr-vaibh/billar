@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const companyId = req.nextUrl.searchParams.get('companyId');
 
-  const accounts = await db.financialAccount.findMany({
+  const accounts = await db.bankAccount.findMany({
     where: { orgId, ...(companyId ? { companyId } : {}) },
     include: { company: { select: { id: true, name: true } } },
     orderBy: { label: 'asc' },
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
   }
 
-  const account = await db.financialAccount.create({
+  const account = await db.bankAccount.create({
     data: { orgId, ...parsed.data },
   });
 

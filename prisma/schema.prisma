@@ -44,6 +44,15 @@ enum OrgStatus {
   deleted
 }
 
+enum PaymentMode {
+  cash
+  upi
+  neft
+  rtgs
+  cheque
+  other
+}
+
 // ─── Core Identity ────────────────────────────────────────────────────────────
 
 model User {
@@ -123,13 +132,15 @@ model Organization {
   memberships       OrgMembership[]
   roles             Role[]
   companies         Company[]
-  financialAccounts FinancialAccount[]
+  bankAccounts      BankAccount[]
+  customers         Customer[]
   bills             Bill[]
   templates         Template[]
   settings          OrgSettings?
   invoiceSequences  InvoiceSequence[]
   auditLogs         AuditLog[]
   inviteTokens      InviteToken[]
+  payments          Payment[]
 }
 
 model OrgMembership {
@@ -216,13 +227,13 @@ model Company {
   updatedAt DateTime @updatedAt
 
   org               Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  financialAccounts FinancialAccount[]
+  bankAccounts      BankAccount[]
   bills             Bill[]
 
   @@index([orgId])
 }
 
-model FinancialAccount {
+model BankAccount {
   id                String      @id @default(cuid())
   orgId             String
   companyId         String?
@@ -242,8 +253,31 @@ model FinancialAccount {
   org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   company Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
+  @@map("BankAccount")
   @@index([orgId])
   @@index([companyId])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  gstin     String?
+  pan       String?
+  address   String?
+  city      String?
+  state     String?
+  pincode   String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  bills Bill[]
+
+  @@index([orgId])
 }
 
 // ─── Org Settings ─────────────────────────────────────────────────────────────
@@ -284,13 +318,19 @@ model InvoiceSequence {
 }
 
 model InvoiceSequenceHistory {
-  id            String   @id @default(cuid())
-  sequenceId    String
-  previousValue Int
-  newValue      Int
-  reason        String
-  performedBy   String
-  performedAt   DateTime @default(now())
+  id                  String   @id @default(cuid())
+  sequenceId          String
+  previousValue       Int
+  newValue            Int
+  previousPrefix      String   @default("")
+  newPrefix           String   @default("")
+  previousTypeCode    String   @default("")
+  newTypeCode         String   @default("")
+  previousZeroPadding Int      @default(4)
+  newZeroPadding      Int      @default(4)
+  reason              String
+  performedBy         String
+  performedAt         DateTime @default(now())
 
   sequence InvoiceSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
 
@@ -301,34 +341,42 @@ model InvoiceSequenceHistory {
 
 model Bill {
   id               String     @id @default(cuid())
-  orgId            String
-  companyId        String?
-  legacyId         String?
-  billNumber       String
-  billType         BillType
-  status           BillStatus @default(draft)
-  financialYear    String
-  templateId       String?
-  duplicatedFromId String?
-  currency         String     @default("INR")
-  buyerName        String?
-  grandTotal       Float?
-  tags             String[]
-  blocksJson       Json
-  globalCanvasJson Json?
-  schemaVersion    Int        @default(1)
-  createdBy        String
-  updatedBy        String
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  orgId               String
+  companyId           String?
+  customerId          String?
+  legacyId            String?
+  billNumber          String
+  billType            BillType
+  status              BillStatus @default(draft)
+  financialYear       String
+  templateId          String?
+  duplicatedFromId    String?
+  currency            String     @default("INR")
+  buyerName           String?
+  grandTotal          Float?
+  dueDate             DateTime?
+  shareToken          String?    @unique
+  shareTokenCreatedAt DateTime?
+  tags                String[]
+  blocksJson          Json
+  globalCanvasJson    Json?
+  schemaVersion       Int        @default(1)
+  createdBy           String
+  updatedBy           String
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
-  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  company Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  company  Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  customer Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  payments Payment[]
 
   @@unique([orgId, billNumber, financialYear])
   @@index([orgId])
   @@index([orgId, billType])
   @@index([orgId, status])
+  @@index([orgId, dueDate])
+  @@index([shareToken])
   @@index([createdBy])
 }
 
@@ -353,6 +401,25 @@ model Template {
 
   @@index([orgId])
   @@index([orgId, billType])
+}
+
+model Payment {
+  id          String      @id @default(cuid())
+  orgId       String
+  billId      String
+  amount      Float
+  paidAt      DateTime
+  mode        PaymentMode
+  reference   String?
+  notes       String?
+  recordedBy  String
+  createdAt   DateTime    @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  bill Bill         @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([billId])
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────

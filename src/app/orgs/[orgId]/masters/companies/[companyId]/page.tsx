@@ -29,7 +29,7 @@ export default async function EditCompanyPage({
   const company = await db.company.findUnique({
     where: { id: companyId },
     include: {
-      financialAccounts: {
+      bankAccounts: {
         orderBy: { label: 'asc' },
       },
     },
@@ -65,7 +65,7 @@ export default async function EditCompanyPage({
           logoBase64: company.logoBase64 ?? '',
           isActive: company.isActive,
         }}
-        accounts={company.financialAccounts.map((a) => ({
+        accounts={company.bankAccounts.map((a) => ({
           id: a.id,
           label: a.label,
           bankName: a.bankName,

@@ -63,7 +63,7 @@ export function CompanyEditClient({ orgId, company, accounts: initial, canEdit, 
 
   async function handleDeleteAccount(id: string) {
     setDeletingId(id);
-    await fetch(`/api/orgs/${orgId}/financial-accounts/${id}`, { method: 'DELETE' });
+    await fetch(`/api/orgs/${orgId}/bank-accounts/${id}`, { method: 'DELETE' });
     setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, isActive: false } : a));
     setDeletingId(null);
     setConfirmId(null);
@@ -98,7 +98,7 @@ export function CompanyEditClient({ orgId, company, accounts: initial, canEdit, 
       <TabsContent value="accounts" className="pt-4 space-y-4">
         <div className="flex justify-end">
           {canEdit && (
-            <Link href={`/orgs/${orgId}/masters/financial-accounts/new?companyId=${company.id}`}>
+            <Link href={`/orgs/${orgId}/masters/bank-accounts/new?companyId=${company.id}`}>
               <Button size="sm" className="gap-2">
                 <PlusCircle className="h-4 w-4" />
                 Add Account
@@ -108,7 +108,7 @@ export function CompanyEditClient({ orgId, company, accounts: initial, canEdit, 
         </div>
 
         {accounts.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-10">No financial accounts linked to this company yet.</p>
+          <p className="text-sm text-muted-foreground text-center py-10">No bank accounts linked to this company yet.</p>
         ) : (
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
@@ -139,7 +139,7 @@ export function CompanyEditClient({ orgId, company, accounts: initial, canEdit, 
                         {canEdit && (
                           <Button
                             size="sm" variant="ghost"
-                            onClick={() => router.push(`/orgs/${orgId}/masters/financial-accounts/${a.id}`)}
+                            onClick={() => router.push(`/orgs/${orgId}/masters/bank-accounts/${a.id}`)}
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>

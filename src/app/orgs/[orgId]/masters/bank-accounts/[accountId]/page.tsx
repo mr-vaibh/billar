@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
-import { AccountForm } from '@/components/financial-accounts/AccountForm';
+import { AccountForm } from '@/components/bank-accounts/AccountForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,13 +21,13 @@ export default async function EditAccountPage({
   if (!perms.has('masters:read')) {
     return (
       <div className="p-8 text-sm text-muted-foreground">
-        You don't have permission to view financial accounts.
+        You don't have permission to view bank accounts.
       </div>
     );
   }
 
   const [account, companies] = await Promise.all([
-    db.financialAccount.findUnique({ where: { id: accountId } }),
+    db.bankAccount.findUnique({ where: { id: accountId } }),
     db.company.findMany({
       where: { orgId, isActive: true },
       select: { id: true, name: true },
@@ -39,7 +39,7 @@ export default async function EditAccountPage({
 
   const backHref = account.companyId
     ? `/orgs/${orgId}/masters/companies/${account.companyId}`
-    : `/orgs/${orgId}/masters/financial-accounts`;
+    : `/orgs/${orgId}/masters/bank-accounts`;
 
   return (
     <div className="p-8 space-y-6 max-w-3xl">

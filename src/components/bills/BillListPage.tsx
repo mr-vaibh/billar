@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BillMeta, BillStatus, BillType } from '@/types/bill';
 import { deleteBill, duplicateBill } from '@/features/bills/billApi';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { BILL_TYPE_LABELS } from '@/features/bills/billUtils';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -27,6 +28,8 @@ export function BillListPage({ initialBills }: { initialBills: BillMeta[] }) {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = initialBills.filter((b) => {
     const matchSearch =
@@ -48,18 +51,21 @@ export function BillListPage({ initialBills }: { initialBills: BillMeta[] }) {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this bill permanently? This cannot be undone.')) return;
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteBill(id);
+      await deleteBill(deleteTarget);
       toast.success('Bill deleted');
       router.refresh();
     } catch {
       toast.error('Failed to delete');
     }
+    setDeleting(false);
+    setDeleteTarget(null);
   }
 
-  return (
+  return (<>
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
@@ -119,7 +125,7 @@ export function BillListPage({ initialBills }: { initialBills: BillMeta[] }) {
                   <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm">{bill.billNumber || 'Untitled Bill'}</span>
+                      <span className="font-semibold text-sm">{bill.billNumber || <span className="text-muted-foreground italic font-normal">Draft</span>}</span>
                       <Badge variant="outline" className="text-xs">{BILL_TYPE_LABELS[bill.billType]}</Badge>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[bill.status]}`}>
                         {bill.status}
@@ -147,7 +153,7 @@ export function BillListPage({ initialBills }: { initialBills: BillMeta[] }) {
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="Duplicate" onClick={() => handleDuplicate(bill.id)}>
                       <Copy className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete" onClick={() => handleDelete(bill.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeleteTarget(bill.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -158,5 +164,16 @@ export function BillListPage({ initialBills }: { initialBills: BillMeta[] }) {
         </div>
       )}
     </div>
+
+    <ConfirmDialog
+      open={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={handleDelete}
+      title="Delete bill?"
+      description="This bill will be permanently deleted. This cannot be undone."
+      confirmLabel="Delete Bill"
+      loading={deleting}
+    />
+    </>
   );
 }

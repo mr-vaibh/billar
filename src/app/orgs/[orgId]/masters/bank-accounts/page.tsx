@@ -2,11 +2,11 @@ import { getSession } from '@/lib/auth';
 import { getPermissions } from '@/lib/permissions';
 import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
-import { AccountsClient } from '@/components/financial-accounts/AccountsClient';
+import { AccountsClient } from '@/components/bank-accounts/AccountsClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FinancialAccountsPage({ params }: { params: Promise<{ orgId: string }> }) {
+export default async function BankAccountsPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { orgId } = await params;
   const user = await getSession();
   if (!user) redirect('/login');
@@ -15,12 +15,12 @@ export default async function FinancialAccountsPage({ params }: { params: Promis
   if (!perms.has('masters:read')) {
     return (
       <div className="p-8 text-sm text-muted-foreground">
-        You don't have permission to view financial accounts.
+        You don't have permission to view bank accounts.
       </div>
     );
   }
 
-  const accounts = await db.financialAccount.findMany({
+  const accounts = await db.bankAccount.findMany({
     where: { orgId },
     include: { company: { select: { id: true, name: true } } },
     orderBy: { label: 'asc' },

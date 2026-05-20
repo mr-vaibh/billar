@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const denied = await checkPermission(user.id, orgId, 'masters:read');
   if (denied) return denied;
 
-  const account = await db.financialAccount.findUnique({
+  const account = await db.bankAccount.findUnique({
     where: { id: accountId },
     include: { company: { select: { id: true, name: true } } },
   });
@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const denied = await checkPermission(user.id, orgId, 'masters:edit');
   if (denied) return denied;
 
-  const account = await db.financialAccount.findUnique({ where: { id: accountId } });
+  const account = await db.bankAccount.findUnique({ where: { id: accountId } });
   if (!account || account.orgId !== orgId) return Response.json({ error: 'Not found' }, { status: 404 });
 
   let body: unknown;
@@ -61,7 +61,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
   }
 
-  const updated = await db.financialAccount.update({
+  const updated = await db.bankAccount.update({
     where: { id: accountId },
     data: parsed.data,
   });
@@ -76,10 +76,10 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const denied = await checkPermission(user.id, orgId, 'masters:delete');
   if (denied) return denied;
 
-  const account = await db.financialAccount.findUnique({ where: { id: accountId } });
+  const account = await db.bankAccount.findUnique({ where: { id: accountId } });
   if (!account || account.orgId !== orgId) return Response.json({ error: 'Not found' }, { status: 404 });
 
-  await db.financialAccount.update({ where: { id: accountId }, data: { isActive: false } });
+  await db.bankAccount.update({ where: { id: accountId }, data: { isActive: false } });
 
   return Response.json({ ok: true });
 }

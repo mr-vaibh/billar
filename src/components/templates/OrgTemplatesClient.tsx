@@ -5,12 +5,10 @@ import { toast } from 'sonner';
 import { LayoutTemplate, Trash2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { orgDeleteTemplate, orgCreateBill } from '@/features/bills/billApi';
-import { createNewBill } from '@/features/bills/billUtils';
+import { orgDeleteTemplate } from '@/features/bills/billApi';
 import { BILL_TYPE_LABELS } from '@/features/bills/billUtils';
 import { formatDistanceToNow } from 'date-fns';
 import type { Template } from '@/types/template';
-import type { Block } from '@/types/bill';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -29,18 +27,8 @@ export function OrgTemplatesClient({ orgId, initialTemplates, canDelete }: Props
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  async function handleUse(template: Template) {
-    try {
-      const bill = createNewBill(template.billType);
-      bill.blocks = template.blocks as Block[];
-      bill.meta.templateId = template.id;
-      if (template.globalCanvasOverlay) bill.globalCanvasOverlay = template.globalCanvasOverlay;
-      const created = await orgCreateBill(orgId, bill);
-      toast.success('Bill created from template');
-      router.push(`/orgs/${orgId}/bills/${created.meta.id}`);
-    } catch {
-      toast.error('Failed to create bill from template');
-    }
+  function handleUse(template: Template) {
+    router.push(`/orgs/${orgId}/bills/new?templateId=${template.id}&type=${template.billType}`);
   }
 
   async function handleDelete(id: string) {

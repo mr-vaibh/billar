@@ -76,8 +76,8 @@ export function AccountForm({ orgId, accountId, companies, initial, defaultCompa
     };
 
     const url = accountId
-      ? `/api/orgs/${orgId}/financial-accounts/${accountId}`
-      : `/api/orgs/${orgId}/financial-accounts`;
+      ? `/api/orgs/${orgId}/bank-accounts/${accountId}`
+      : `/api/orgs/${orgId}/bank-accounts`;
     const method = accountId ? 'PATCH' : 'POST';
 
     const res = await fetch(url, {
@@ -97,7 +97,7 @@ export function AccountForm({ orgId, accountId, companies, initial, defaultCompa
     if (form.companyId) {
       router.push(`/orgs/${orgId}/masters/companies/${form.companyId}`);
     } else {
-      router.push(`/orgs/${orgId}/masters/financial-accounts`);
+      router.push(`/orgs/${orgId}/masters/bank-accounts`);
     }
     router.refresh();
   }

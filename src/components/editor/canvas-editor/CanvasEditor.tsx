@@ -3,6 +3,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import type { Canvas as FabricCanvas, TEvent } from 'fabric';
 import { useCanvasStore } from '@/store/canvasStore';
 import { CanvasToolbar } from './CanvasToolbar';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Props {
   fabricJson: string;
@@ -16,6 +17,7 @@ export function CanvasEditor({ fabricJson, width, height, onChange }: Props) {
   const fabricRef = useRef<FabricCanvas | null>(null);
   const { activeTool, strokeColor, fillColor, strokeWidth, fontSize } = useCanvasStore();
   const [isReady, setIsReady] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
   const isDrawingShape = useRef(false);
   const startPoint = useRef({ x: 0, y: 0 });
 
@@ -168,7 +170,6 @@ export function CanvasEditor({ fabricJson, width, height, onChange }: Props) {
   function clearAll() {
     const canvas = fabricRef.current;
     if (!canvas) return;
-    if (!confirm('Clear all drawings?')) return;
     canvas.clear();
     canvas.backgroundColor = '#ffffff';
     canvas.renderAll();
@@ -176,16 +177,26 @@ export function CanvasEditor({ fabricJson, width, height, onChange }: Props) {
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white">
-      <CanvasToolbar onImageUpload={handleImageUpload} onDeleteSelected={deleteSelected} onClearAll={clearAll} />
-      <div className="overflow-auto">
-        <canvas ref={canvasRef} className="block" style={{ maxWidth: '100%' }} />
-      </div>
-      {!isReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/80 text-sm text-muted-foreground">
-          Initializing canvas...
+    <>
+      <div className="border rounded-lg overflow-hidden bg-white">
+        <CanvasToolbar onImageUpload={handleImageUpload} onDeleteSelected={deleteSelected} onClearAll={() => setClearOpen(true)} />
+        <div className="overflow-auto">
+          <canvas ref={canvasRef} className="block" style={{ maxWidth: '100%' }} />
         </div>
-      )}
-    </div>
+        {!isReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/80 text-sm text-muted-foreground">
+            Initializing canvas...
+          </div>
+        )}
+      </div>
+      <ConfirmDialog
+        open={clearOpen}
+        onClose={() => setClearOpen(false)}
+        onConfirm={() => { clearAll(); setClearOpen(false); }}
+        title="Clear all drawings?"
+        description="All canvas drawings will be permanently removed."
+        confirmLabel="Clear All"
+      />
+    </>
   );
 }

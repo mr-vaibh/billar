@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserPlus, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
@@ -139,21 +140,33 @@ export function UsersClient({ orgId, currentUserId, members: initial, allRoles, 
 }
 
 function RemoveMemberButton({ orgId, userId, name, onDone }: { orgId: string; userId: string; name: string; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function remove() {
-    if (!confirm(`Remove ${name} from this organisation?`)) return;
     setLoading(true);
     const res = await fetch(`/api/orgs/${orgId}/users/${userId}`, { method: 'DELETE' });
     if (res.ok) { toast.success('Member removed'); onDone(); }
     else { toast.error('Failed to remove member'); }
     setLoading(false);
+    setOpen(false);
   }
 
   return (
-    <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-destructive hover:text-destructive" onClick={remove} disabled={loading}>
-      <Trash2 className="h-3.5 w-3.5" />
-    </Button>
+    <>
+      <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-destructive hover:text-destructive" onClick={() => setOpen(true)} disabled={loading}>
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        onConfirm={remove}
+        title="Remove member?"
+        description={`${name} will be removed from this organisation and lose all access.`}
+        confirmLabel="Remove"
+        loading={loading}
+      />
+    </>
   );
 }
 

@@ -25,6 +25,20 @@ interface OrgSettings {
   allowBankOverride: boolean;
 }
 
+interface SequenceHistoryEntry {
+  id: string;
+  previousValue: number;
+  newValue: number;
+  previousPrefix: string;
+  newPrefix: string;
+  previousTypeCode: string;
+  newTypeCode: string;
+  previousZeroPadding: number;
+  newZeroPadding: number;
+  reason: string;
+  performedAt: string;
+}
+
 interface Sequence {
   id: string;
   billType: string;
@@ -33,7 +47,7 @@ interface Sequence {
   typeCode: string;
   zeroPadding: number;
   currentValue: number;
-  history: Array<{ id: string; previousValue: number; newValue: number; reason: string; performedAt: string }>;
+  history: SequenceHistoryEntry[];
 }
 
 interface Props {
@@ -55,13 +69,15 @@ const BILL_TYPE_LABELS: Record<string, string> = {
 
 export function OrgSettingsClient({ orgId, initialSettings, initialSequences, canEdit }: Props) {
   const [settings, setSettings] = useState(initialSettings);
+  const [savedSettings, setSavedSettings] = useState(initialSettings);
   const [sequences, setSequences] = useState(initialSequences);
   const [saving, setSaving] = useState(false);
-  const isDirty = JSON.stringify(settings) !== JSON.stringify(initialSettings);
+  const isDirty = JSON.stringify(settings) !== JSON.stringify(savedSettings);
   const [resetTarget, setResetTarget] = useState<Sequence | null>(null);
   const [resetValue, setResetValue] = useState('0');
   const [resetReason, setResetReason] = useState('');
   const [resetPrefix, setResetPrefix] = useState('');
+  const [resetTypeCode, setResetTypeCode] = useState('');
   const [resetPadding, setResetPadding] = useState('4');
   const [expandedSeq, setExpandedSeq] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
@@ -75,6 +91,7 @@ export function OrgSettingsClient({ orgId, initialSettings, initialSequences, ca
     });
     setSaving(false);
     if (res.ok) {
+      setSavedSettings(settings);
       toast.success('Settings saved');
     } else {
       const d = await res.json();
@@ -87,6 +104,7 @@ export function OrgSettingsClient({ orgId, initialSettings, initialSequences, ca
     setResetValue(String(seq.currentValue));
     setResetReason('');
     setResetPrefix(seq.prefix);
+    setResetTypeCode(seq.typeCode);
     setResetPadding(String(seq.zeroPadding));
   }
 
@@ -100,13 +118,14 @@ export function OrgSettingsClient({ orgId, initialSettings, initialSequences, ca
         resetToValue: parseInt(resetValue, 10),
         reason: resetReason,
         prefix: resetPrefix,
+        typeCode: resetTypeCode.toUpperCase(),
         zeroPadding: parseInt(resetPadding, 10),
       }),
     });
     setResetting(false);
     if (res.ok) {
       const updated = await res.json();
-      setSequences((prev) => prev.map((s) => s.id === updated.id ? { ...s, ...updated } : s));
+      setSequences((prev) => prev.map((s) => s.id === updated.id ? updated : s));
       setResetTarget(null);
       toast.success('Sequence updated');
     } else {
@@ -115,8 +134,29 @@ export function OrgSettingsClient({ orgId, initialSettings, initialSequences, ca
     }
   }
 
+  const ALPHANUM = /^[A-Z0-9]*$/;
+  const prefixError = resetPrefix && !ALPHANUM.test(resetPrefix)
+    ? 'Only uppercase letters and numbers allowed'
+    : resetPrefix.length > 5
+    ? 'Max 5 characters'
+    : null;
+  const typeCodeError = !resetTypeCode.trim()
+    ? 'Required'
+    : !ALPHANUM.test(resetTypeCode)
+    ? 'Only uppercase letters and numbers allowed'
+    : resetTypeCode.length > 10
+    ? 'Max 10 characters'
+    : null;
+
   function formatBillNumber(seq: Sequence, value: number) {
     return `${seq.prefix}${seq.typeCode}-${seq.financialYear}-${String(value).padStart(seq.zeroPadding, '0')}`;
+  }
+
+  function formatPreview(value: number) {
+    if (!resetTarget) return '';
+    const pad = Math.max(1, parseInt(resetPadding, 10) || 1);
+    const tc = resetTypeCode.toUpperCase() || resetTarget.typeCode;
+    return `${resetPrefix}${tc}-${resetTarget.financialYear}-${String(value).padStart(pad, '0')}`;
   }
 
   return (
@@ -218,30 +258,40 @@ export function OrgSettingsClient({ orgId, initialSettings, initialSequences, ca
       <section className="space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Invoice Sequences</h2>
-          <p className="text-xs text-muted-foreground mt-1">Auto-assigned bill numbers per type and financial year. Sequences are created the first time a bill of that type is saved.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Bill numbers are assigned when a bill is finalized. Sequences are created automatically per bill type and financial year.
+          </p>
         </div>
 
         {sequences.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No sequences yet. They're created automatically when bills are first saved.</p>
+          <p className="text-sm text-muted-foreground italic">No sequences yet — they're created automatically the first time a bill is finalized.</p>
         ) : (
           <div className="border rounded-lg divide-y">
             {sequences.map((seq) => (
               <div key={seq.id}>
+                {/* Sequence header row */}
                 <div className="flex items-center gap-4 px-4 py-3">
-                  <div className="flex-1 flex items-center gap-3">
-                    <span className="font-medium text-sm">{BILL_TYPE_LABELS[seq.billType] ?? seq.billType}</span>
-                    <Badge variant="secondary" className="text-xs">{seq.financialYear.slice(0, 2)}-{seq.financialYear.slice(2)}</Badge>
-                    <span className="text-xs text-muted-foreground font-mono">
-                      Next: {formatBillNumber(seq, seq.currentValue + 1)}
-                    </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{BILL_TYPE_LABELS[seq.billType] ?? seq.billType}</span>
+                      <Badge variant="secondary" className="text-xs font-mono">{seq.financialYear.slice(0, 2)}-{seq.financialYear.slice(2)}</Badge>
+                      {seq.prefix && (
+                        <Badge variant="outline" className="text-xs font-mono">prefix: {seq.prefix}</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs text-muted-foreground">Next:</span>
+                      <span className="text-sm font-mono font-semibold tracking-wide">{formatBillNumber(seq, seq.currentValue + 1)}</span>
+                      <span className="text-xs text-muted-foreground">(counter at {seq.currentValue})</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm" variant="ghost"
-                      onClick={() => setExpandedSeq(expandedSeq === seq.id ? null : seq.id)}
-                    >
-                      {expandedSeq === seq.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {seq.history.length > 0 && (
+                      <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={() => setExpandedSeq(expandedSeq === seq.id ? null : seq.id)}>
+                        {expandedSeq === seq.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        History
+                      </Button>
+                    )}
                     {canEdit && (
                       <Button size="sm" variant="outline" className="gap-1" onClick={() => openReset(seq)}>
                         <RotateCcw className="h-3.5 w-3.5" />
@@ -251,16 +301,31 @@ export function OrgSettingsClient({ orgId, initialSettings, initialSequences, ca
                   </div>
                 </div>
 
+                {/* History rows */}
                 {expandedSeq === seq.id && seq.history.length > 0 && (
-                  <div className="px-4 pb-3 space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Recent history</p>
-                    {seq.history.map((h) => (
-                      <div key={h.id} className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="font-mono">{h.previousValue} → {h.newValue}</span>
-                        <span className="flex-1">{h.reason}</span>
-                        <span>{new Date(h.performedAt).toLocaleDateString()}</span>
-                      </div>
-                    ))}
+                  <div className="bg-muted/30 border-t px-4 py-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Adjustment history</p>
+                    {seq.history.map((h) => {
+                      const fromPrefix = h.previousPrefix  ?? '';
+                      const toPrefix   = h.newPrefix       ?? '';
+                      const fromCode   = h.previousTypeCode || seq.typeCode;
+                      const toCode     = h.newTypeCode     || seq.typeCode;
+                      const fromPad    = h.previousZeroPadding ?? seq.zeroPadding;
+                      const toPad      = h.newZeroPadding      ?? seq.zeroPadding;
+                      const fmtFrom = `${fromPrefix}${fromCode}-${seq.financialYear}-${String(h.previousValue).padStart(fromPad, '0')}`;
+                      const fmtTo   = `${toPrefix}${toCode}-${seq.financialYear}-${String(h.newValue).padStart(toPad, '0')}`;
+                      return (
+                        <div key={h.id} className="flex items-center gap-3 text-xs">
+                          <div className="flex items-center gap-1.5 font-mono shrink-0">
+                            <span className="text-muted-foreground">{fmtFrom}</span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="font-semibold text-foreground">{fmtTo}</span>
+                          </div>
+                          <span className="flex-1 text-muted-foreground truncate">{h.reason}</span>
+                          <span className="text-muted-foreground shrink-0">{new Date(h.performedAt).toLocaleDateString()}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -269,41 +334,116 @@ export function OrgSettingsClient({ orgId, initialSettings, initialSequences, ca
         )}
       </section>
 
-      {/* Reset dialog */}
+      {/* Adjust dialog */}
       <Dialog open={!!resetTarget} onOpenChange={(o) => !o && setResetTarget(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Adjust Sequence — {resetTarget ? (BILL_TYPE_LABELS[resetTarget.billType] ?? resetTarget.billType) : ''}</DialogTitle>
+            <DialogTitle>
+              Adjust Sequence — {resetTarget ? (BILL_TYPE_LABELS[resetTarget.billType] ?? resetTarget.billType) : ''}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Current value → set to</Label>
-              <Input type="number" min={0} value={resetValue} onChange={(e) => setResetValue(e.target.value)} />
-              {resetTarget && (
-                <p className="text-xs text-muted-foreground">Next bill number will be: <span className="font-mono">{formatBillNumber(resetTarget, parseInt(resetValue || '0', 10) + 1)}</span></p>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+
+          {/* Live preview */}
+          <div className="rounded-lg bg-muted px-4 py-3 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Next bill number will be</p>
+            <p className="text-xl font-mono font-bold tracking-wider">{formatPreview(parseInt(resetValue || '0', 10) + 1)}</p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Format row */}
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label>Prefix</Label>
-                <Input value={resetPrefix} onChange={(e) => setResetPrefix(e.target.value)} placeholder="empty" />
+                <Label className="text-xs">Prefix</Label>
+                <Input
+                  value={resetPrefix}
+                  onChange={(e) => setResetPrefix(e.target.value.toUpperCase())}
+                  placeholder="none"
+                  maxLength={5}
+                  className={`font-mono ${prefixError ? 'border-destructive' : ''}`}
+                />
+                {prefixError
+                  ? <p className="text-xs text-destructive">{prefixError}</p>
+                  : <p className="text-xs text-muted-foreground">Optional. e.g. A → AINV</p>}
               </div>
               <div className="space-y-1.5">
-                <Label>Zero padding</Label>
-                <Input type="number" min={1} max={8} value={resetPadding} onChange={(e) => setResetPadding(e.target.value)} />
+                <Label className="text-xs">Type code</Label>
+                <Input
+                  value={resetTypeCode}
+                  onChange={(e) => setResetTypeCode(e.target.value.toUpperCase())}
+                  placeholder="INV"
+                  maxLength={10}
+                  className={`font-mono ${typeCodeError ? 'border-destructive' : ''}`}
+                />
+                {typeCodeError
+                  ? <p className="text-xs text-destructive">{typeCodeError}</p>
+                  : <p className="text-xs text-muted-foreground">e.g. INV, TAX, BILL</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Zero padding</Label>
+                <Input
+                  type="number" min={1} max={8}
+                  value={resetPadding}
+                  onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    setResetPadding(!isNaN(v) && v > 8 ? '8' : e.target.value);
+                  }}
+                  onBlur={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    setResetPadding(String(isNaN(v) ? 1 : Math.min(8, Math.max(1, v))));
+                  }}
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground">digits: 4 → 0001</p>
               </div>
             </div>
+
+            {/* Counter */}
             <div className="space-y-1.5">
-              <Label>Reason *</Label>
-              <Textarea value={resetReason} onChange={(e) => setResetReason(e.target.value)} placeholder="e.g. New financial year reset" rows={2} />
+              <Label className="text-xs">Set counter to</Label>
+              <Input
+                type="number" min={0} max={999999}
+                value={resetValue}
+                onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  setResetValue(!isNaN(v) && v > 999999 ? '999999' : e.target.value);
+                }}
+                onBlur={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  setResetValue(String(isNaN(v) ? 0 : Math.min(999999, Math.max(0, v))));
+                }}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">Current counter: {resetTarget?.currentValue}. Next bill uses counter + 1.</p>
+            </div>
+
+            {/* Reason */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Reason <span className="text-destructive">*</span></Label>
+              <Textarea
+                value={resetReason}
+                onChange={(e) => setResetReason(e.target.value)}
+                placeholder="e.g. Correcting series after migration"
+                rows={2}
+              />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetTarget(null)}>Cancel</Button>
-            <Button
-              disabled={!resetReason.trim() || resetting}
-              onClick={handleReset}
-            >
+            <Button disabled={
+              !resetReason.trim() ||
+              !!prefixError ||
+              !!typeCodeError ||
+              resetting ||
+              (
+                parseInt(resetValue, 10) === resetTarget?.currentValue &&
+                resetPrefix === resetTarget?.prefix &&
+                resetTypeCode.toUpperCase() === resetTarget?.typeCode &&
+                parseInt(resetPadding, 10) === resetTarget?.zeroPadding
+              )
+            } onClick={handleReset}>
               {resetting ? 'Saving…' : 'Apply'}
             </Button>
           </DialogFooter>

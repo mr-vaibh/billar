@@ -30,7 +30,7 @@ export function OrderInfoBlock({ block }: Props) {
           <Input
             value={d.billNumber}
             onChange={(e) => update({ billNumber: e.target.value })}
-            placeholder="INV/2526/0001"
+            placeholder="Auto on finalize"
             className="font-mono"
           />
         </div>

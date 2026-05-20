@@ -27,7 +27,7 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
     db.invoiceSequence.findMany({
       where: { orgId },
       orderBy: [{ billType: 'asc' }, { financialYear: 'desc' }],
-      include: { history: { orderBy: { performedAt: 'desc' }, take: 5 } },
+      include: { history: { orderBy: { performedAt: 'desc' } } },
     }),
   ]);
 
@@ -67,6 +67,12 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
                 id: h.id,
                 previousValue: h.previousValue,
                 newValue: h.newValue,
+                previousPrefix: h.previousPrefix,
+                newPrefix: h.newPrefix,
+                previousTypeCode: h.previousTypeCode,
+                newTypeCode: h.newTypeCode,
+                previousZeroPadding: h.previousZeroPadding,
+                newZeroPadding: h.newZeroPadding,
                 reason: h.reason,
                 performedAt: h.performedAt.toISOString(),
               })),

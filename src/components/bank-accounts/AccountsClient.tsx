@@ -41,7 +41,7 @@ export function AccountsClient({ orgId, accounts: initial, canCreate, canEdit, c
 
   async function handleDelete(id: string) {
     setDeletingId(id);
-    await fetch(`/api/orgs/${orgId}/financial-accounts/${id}`, { method: 'DELETE' });
+    await fetch(`/api/orgs/${orgId}/bank-accounts/${id}`, { method: 'DELETE' });
     setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, isActive: false } : a));
     setDeletingId(null);
     setConfirmId(null);
@@ -53,11 +53,11 @@ export function AccountsClient({ orgId, accounts: initial, canCreate, canEdit, c
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Financial Accounts</h1>
+          <h1 className="text-2xl font-bold">Bank Accounts</h1>
           <p className="text-sm text-muted-foreground mt-1">Bank accounts used on bills.</p>
         </div>
         {canCreate && (
-          <Link href={`/orgs/${orgId}/masters/financial-accounts/new`}>
+          <Link href={`/orgs/${orgId}/masters/bank-accounts/new`}>
             <Button size="sm" className="gap-2">
               <PlusCircle className="h-4 w-4" />
               Add Account
@@ -69,9 +69,9 @@ export function AccountsClient({ orgId, accounts: initial, canCreate, canEdit, c
       {accounts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
           <CreditCard className="h-10 w-10 opacity-30" />
-          <p className="text-sm">No financial accounts yet.</p>
+          <p className="text-sm">No bank accounts yet.</p>
           {canCreate && (
-            <Link href={`/orgs/${orgId}/masters/financial-accounts/new`}>
+            <Link href={`/orgs/${orgId}/masters/bank-accounts/new`}>
               <Button size="sm" variant="outline">Add your first account</Button>
             </Link>
           )}
@@ -117,7 +117,7 @@ export function AccountsClient({ orgId, accounts: initial, canCreate, canEdit, c
                       {canEdit && (
                         <Button
                           size="sm" variant="ghost"
-                          onClick={() => router.push(`/orgs/${orgId}/masters/financial-accounts/${a.id}`)}
+                          onClick={() => router.push(`/orgs/${orgId}/masters/bank-accounts/${a.id}`)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>

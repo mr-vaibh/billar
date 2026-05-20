@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
-import { AccountForm } from '@/components/financial-accounts/AccountForm';
+import { AccountForm } from '@/components/bank-accounts/AccountForm';
 
 export default async function NewAccountPage({
   params,
@@ -22,7 +22,7 @@ export default async function NewAccountPage({
   if (!perms.has('masters:create')) {
     return (
       <div className="p-8 text-sm text-muted-foreground">
-        You don't have permission to create financial accounts.
+        You don't have permission to create bank accounts.
       </div>
     );
   }
@@ -35,7 +35,7 @@ export default async function NewAccountPage({
 
   const backHref = companyId
     ? `/orgs/${orgId}/masters/companies/${companyId}`
-    : `/orgs/${orgId}/masters/financial-accounts`;
+    : `/orgs/${orgId}/masters/bank-accounts`;
 
   return (
     <div className="p-8 space-y-6 max-w-3xl">
@@ -44,7 +44,7 @@ export default async function NewAccountPage({
           <ChevronLeft className="h-4 w-4" />
           Back
         </Link>
-        <h1 className="text-2xl font-bold">Add Financial Account</h1>
+        <h1 className="text-2xl font-bold">Add Bank Account</h1>
       </div>
       <AccountForm orgId={orgId} companies={companies} defaultCompanyId={companyId} />
     </div>

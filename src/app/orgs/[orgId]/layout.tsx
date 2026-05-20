@@ -26,7 +26,7 @@ export default async function OrgLayout({ children, params }: Props) {
 
   return (
     <OrgProvider orgId={orgId} orgName={membership.org.name} userId={user.id}>
-      <AppShell orgId={orgId}>
+      <AppShell orgId={orgId} userName={user.name} userEmail={user.email}>
         {children}
       </AppShell>
     </OrgProvider>
