@@ -4,7 +4,7 @@ import { useBillStore } from '@/store/billStore';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building2, Loader2 } from 'lucide-react';
+import { Building2, UserCircle, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
 import type { Block, PartyDetails, PartyInfoData } from '@/types/bill';
 import { INDIAN_STATES } from '@/features/bills/billUtils';
 
@@ -20,6 +20,12 @@ interface CompanyOption {
   id: string; name: string; gstin: string | null;
   address: string; city: string; state: string; pincode: string;
   phone: string | null; email: string | null;
+}
+
+function resolveState(stateVal: string | null | undefined) {
+  if (!stateVal) return { name: '', code: '' };
+  const match = INDIAN_STATES.find((s) => s.name === stateVal || s.code === stateVal);
+  return { name: match?.name ?? stateVal, code: match?.code ?? '' };
 }
 
 function PartyFields({ party, onChange }: { party: PartyDetails; onChange: (p: Partial<PartyDetails>) => void }) {
@@ -40,7 +46,8 @@ function PartyFields({ party, onChange }: { party: PartyDetails; onChange: (p: P
         </div>
         <div className="space-y-1 col-span-2">
           <Label className="text-xs">State</Label>
-          <Select value={party.stateCode || ''} onValueChange={(v) => { if (!v) return;
+          <Select value={party.stateCode || ''} onValueChange={(v) => {
+            if (!v) return;
             const state = INDIAN_STATES.find((s) => s.code === v);
             onChange({ stateCode: v, state: state?.name || '' });
           }}>
@@ -48,7 +55,9 @@ function PartyFields({ party, onChange }: { party: PartyDetails; onChange: (p: P
               <SelectValue placeholder="Select state" />
             </SelectTrigger>
             <SelectContent>
-              {INDIAN_STATES.map((s) => <SelectItem key={s.code} value={s.code} className="text-xs">{s.code} - {s.name}</SelectItem>)}
+              {INDIAN_STATES.map((s) => (
+                <SelectItem key={s.code} value={s.code} className="text-xs">{s.code} - {s.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -100,18 +109,8 @@ function SellerForm({ party, onChange, orgId }: { party: PartyDetails; onChange:
     const c = companies.find((co) => co.id === companyId);
     if (!c) return;
     setSelectedName(c.name);
-    const state = INDIAN_STATES.find((s) => s.name === c.state || s.code === c.state);
-    onChange({
-      name: c.name,
-      gstin: c.gstin ?? '',
-      address: c.address,
-      city: c.city,
-      state: state?.name ?? c.state,
-      stateCode: state?.code ?? '',
-      pincode: c.pincode,
-      phone: c.phone ?? '',
-      email: c.email ?? '',
-    });
+    const { name: stateName, code: stateCode } = resolveState(c.state);
+    onChange({ name: c.name, gstin: c.gstin ?? '', address: c.address, city: c.city, state: stateName, stateCode, pincode: c.pincode, phone: c.phone ?? '', email: c.email ?? '' });
   }
 
   return (
@@ -146,28 +145,49 @@ function SellerForm({ party, onChange, orgId }: { party: PartyDetails; onChange:
 }
 
 function BuyerForm({ party, onChange, orgId }: { party: PartyDetails; onChange: (p: Partial<PartyDetails>) => void; orgId?: string }) {
+  const [customers, setCustomers] = useState<CustomerSuggestion[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [customersLoaded, setCustomersLoaded] = useState(false);
+  const [selectedName, setSelectedName] = useState<string | null>(null);
+
   const [suggestions, setSuggestions] = useState<CustomerSuggestion[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!orgId || customersLoaded) return;
+    setLoadingCustomers(true);
+    fetch(`/api/orgs/${orgId}/customers`)
+      .then((r) => r.json())
+      .then((data) => {
+        setCustomers(data);
+        setCustomersLoaded(true);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingCustomers(false));
+  }, [orgId]); // eslint-disable-line
+
+  useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDropdown(false);
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  function fillFromCustomer(c: CustomerSuggestion) {
+    setSelectedName(c.name);
+    const { name: stateName, code: stateCode } = resolveState(c.state);
+    onChange({ name: c.name, gstin: c.gstin ?? '', address: c.address ?? '', city: c.city ?? '', state: stateName, stateCode, pincode: c.pincode ?? '', phone: c.phone ?? '', email: c.email ?? '' });
+    setSuggestions([]);
+    setShowDropdown(false);
+  }
+
   function handleNameChange(name: string) {
     onChange({ name });
-    if (!orgId || name.length < 2) {
-      setSuggestions([]);
-      setShowDropdown(false);
-      return;
-    }
+    setSelectedName(null);
+    if (!orgId || name.length < 2) { setSuggestions([]); setShowDropdown(false); return; }
     if (searchRef.current) clearTimeout(searchRef.current);
     searchRef.current = setTimeout(async () => {
       const res = await fetch(`/api/orgs/${orgId}/customers/search?q=${encodeURIComponent(name)}`);
@@ -179,26 +199,35 @@ function BuyerForm({ party, onChange, orgId }: { party: PartyDetails; onChange: 
     }, 250);
   }
 
-  function fillFromCustomer(c: CustomerSuggestion) {
-    const state = INDIAN_STATES.find((s) => s.name === c.state || s.code === c.state);
-    onChange({
-      name: c.name,
-      gstin: c.gstin ?? '',
-      address: c.address ?? '',
-      city: c.city ?? '',
-      state: state?.name ?? c.state ?? '',
-      stateCode: state?.code ?? '',
-      pincode: c.pincode ?? '',
-      phone: c.phone ?? '',
-      email: c.email ?? '',
-    });
-    setSuggestions([]);
-    setShowDropdown(false);
-  }
-
   return (
     <div className="flex-1 min-w-0 space-y-3">
       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Buyer (To)</h4>
+      {orgId && (
+        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border border-dashed">
+          <UserCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground flex-1">Fill from customer master</span>
+          <Select onValueChange={(v) => {
+            const c = customers.find((cu) => cu.id === v);
+            if (c) fillFromCustomer(c);
+          }}>
+            <SelectTrigger className="h-7 w-44 text-xs">
+              {loadingCustomers ? (
+                <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Loading…</span>
+              ) : selectedName ? (
+                <span>{selectedName}</span>
+              ) : (
+                <SelectValue placeholder="Pick a customer…" />
+              )}
+            </SelectTrigger>
+            <SelectContent>
+              {customers.length === 0 && customersLoaded && (
+                <SelectItem value="__none__" disabled>No customers yet</SelectItem>
+              )}
+              {customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="space-y-1" ref={orgId ? wrapRef : undefined}>
         <Label className="text-xs">Name *</Label>
         <div className="relative">
@@ -239,7 +268,8 @@ function BuyerForm({ party, onChange, orgId }: { party: PartyDetails; onChange: 
         </div>
         <div className="space-y-1 col-span-2">
           <Label className="text-xs">State</Label>
-          <Select value={party.stateCode || ''} onValueChange={(v) => { if (!v) return;
+          <Select value={party.stateCode || ''} onValueChange={(v) => {
+            if (!v) return;
             const state = INDIAN_STATES.find((s) => s.code === v);
             onChange({ stateCode: v, state: state?.name || '' });
           }}>
@@ -247,7 +277,9 @@ function BuyerForm({ party, onChange, orgId }: { party: PartyDetails; onChange: 
               <SelectValue placeholder="Select state" />
             </SelectTrigger>
             <SelectContent>
-              {INDIAN_STATES.map((s) => <SelectItem key={s.code} value={s.code} className="text-xs">{s.code} - {s.name}</SelectItem>)}
+              {INDIAN_STATES.map((s) => (
+                <SelectItem key={s.code} value={s.code} className="text-xs">{s.code} - {s.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -291,7 +323,31 @@ export function PartyInfoBlock({ block }: Props) {
         onChange={(p) => update({ seller: { ...d.seller, ...p } })}
         orgId={orgId ?? undefined}
       />
-      <div className="border-l hidden lg:block" />
+
+      {/* Divider with copy arrows */}
+      <div className="flex lg:flex-col items-center justify-center gap-2 lg:py-8">
+        <div className="border-t lg:border-l lg:border-t-0 flex-1 lg:flex-none lg:h-full hidden lg:block" />
+        <div className="flex lg:flex-col gap-1">
+          <button
+            type="button"
+            title="Copy Seller → Buyer"
+            onClick={() => update({ buyer: { ...d.seller } })}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Copy Buyer → Seller"
+            onClick={() => update({ seller: { ...d.buyer } })}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="border-t lg:border-l lg:border-t-0 flex-1 lg:flex-none lg:h-full hidden lg:block" />
+      </div>
+
       <BuyerForm
         party={d.buyer}
         onChange={(p) => update({ buyer: { ...d.buyer, ...p } })}
