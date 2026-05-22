@@ -1,10 +1,13 @@
+import { redirectIfOrg } from '@/lib/orgRedirect';
 import { AppShell } from '@/components/layout/AppShell';
 import { listBills } from '@/lib/fileStorage';
 import { BillListPage } from '@/components/bills/BillListPage';
 
 export const dynamic = 'force-dynamic';
 
-export default function BillsPage() {
+export default async function BillsPage() {
+  await redirectIfOrg('/bills');
+
   const bills = listBills();
   return (
     <AppShell>

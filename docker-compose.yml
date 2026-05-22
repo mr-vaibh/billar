@@ -3,16 +3,16 @@ services:
     image: postgres:16-alpine
     container_name: billar-db
     environment:
-      POSTGRES_USER: billar
-      POSTGRES_PASSWORD: billar_secret
-      POSTGRES_DB: billar
+      POSTGRES_USER: ${POSTGRES_USER:-billar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-billar_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-billar}
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U billar"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-billar}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,14 +23,14 @@ services:
       dockerfile: Dockerfile
     container_name: billar
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy
     env_file: .env
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://billar:billar_secret@postgres:5432/billar
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-billar}:${POSTGRES_PASSWORD:-billar_secret}@postgres:5432/${POSTGRES_DB:-billar}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
@@ -38,6 +38,28 @@ services:
       timeout: 10s
       retries: 3
 
+  pg_backup:
+    image: prodrigestivill/postgres-backup-local:16
+    container_name: billar-backup
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-billar}
+      POSTGRES_USER: ${POSTGRES_USER:-billar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-billar_secret}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+      HEALTHCHECK_PORT: 8080
+    volumes:
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pg_data:
+    driver: local
+  backups:
     driver: local

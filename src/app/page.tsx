@@ -1,10 +1,13 @@
+import { redirectIfOrg } from '@/lib/orgRedirect';
 import { AppShell } from '@/components/layout/AppShell';
 import { listBills } from '@/lib/fileStorage';
 import { DashboardClient } from '@/components/bills/DashboardClient';
 
 export const dynamic = 'force-dynamic';
 
-export default function HomePage() {
+export default async function HomePage() {
+  await redirectIfOrg('');
+
   const bills = listBills();
   const totalBills = bills.length;
   const draftCount = bills.filter((b) => b.status === 'draft').length;
