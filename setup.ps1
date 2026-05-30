@@ -126,7 +126,7 @@ foreach ($entry in $allContainers) {
 # 6. Build and start services
 Write-Section "Building and starting services (this may take a few minutes on first run)..."
 
-Invoke-Expression "$Compose up -d --build"
+Invoke-Expression "$Compose up -d"
 
 # 7. Wait for the app to be ready
 Write-Section "Waiting for the app to be ready..."

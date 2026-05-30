@@ -112,7 +112,7 @@ fi
 # ── 5. Build and start services ───────────────────────────────────────────────
 section "Building and starting services (this may take a few minutes on first run)..."
 
-$COMPOSE up -d --build
+$COMPOSE up -d
 
 # ── 6. Wait for the app to be ready ──────────────────────────────────────────
 section "Waiting for the app to be ready..."
