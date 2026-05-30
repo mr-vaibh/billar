@@ -8,7 +8,7 @@ function Write-Warn($msg)    { Write-Host "  [!]  $msg" -ForegroundColor Yellow 
 function Write-Fail($msg)    { Write-Host "`n  [X] $msg" -ForegroundColor Red; exit 1 }
 function Write-Info($msg)    { Write-Host "  ... $msg" -ForegroundColor Cyan }
 
-# ── Change to the directory where this script lives ──────────────────────────
+# Change to the directory where this script lives
 Set-Location -Path $PSScriptRoot
 
 Write-Host ""
@@ -16,14 +16,14 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "   Billar - One-Click Startup           " -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-# ── 1. Check Docker is installed ─────────────────────────────────────────────
+# 1. Check Docker is installed
 Write-Section "Checking prerequisites..."
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Fail "Docker is not installed. Get it at https://docs.docker.com/get-docker/"
 }
 
-# ── 2. Start Docker Desktop if not running ───────────────────────────────────
+# 2. Start Docker Desktop if not running
 $dockerReady = $false
 try { docker info 2>&1 | Out-Null; $dockerReady = $true } catch {}
 
@@ -68,7 +68,7 @@ if (-not $dockerReady) {
 
 Write-Ok "Docker is running"
 
-# ── 3. Detect Docker Compose ─────────────────────────────────────────────────
+# 3. Detect Docker Compose
 $Compose = $null
 try { docker compose version 2>&1 | Out-Null; $Compose = "docker compose" } catch {}
 if (-not $Compose) {
@@ -81,7 +81,7 @@ if (-not $Compose) {
 
 Write-Ok "Docker Compose OK ($Compose)"
 
-# ── 4. Configure environment ──────────────────────────────────────────────────
+# 4. Configure environment
 Write-Section "Configuring environment..."
 
 if (-not (Test-Path ".env")) {
@@ -100,18 +100,18 @@ if (-not (Test-Path ".env")) {
     Write-Ok ".env created from .env.example"
     Write-Warn "Review .env before deploying to production (credentials, email, admin password)"
 } else {
-    Write-Ok ".env already exists — skipping"
+    Write-Ok ".env already exists - skipping"
 }
 
-# ── 5. Build and start services ───────────────────────────────────────────────
+# 5. Build and start services
 Write-Section "Building and starting services (this may take a few minutes on first run)..."
 
 Invoke-Expression "$Compose up -d --build"
 
-# ── 6. Wait for the app to be ready ──────────────────────────────────────────
+# 6. Wait for the app to be ready
 Write-Section "Waiting for the app to be ready..."
 
-$AppPort = 3000
+$AppPort = 3001
 $envLines = Get-Content ".env" -ErrorAction SilentlyContinue
 foreach ($line in $envLines) {
     if ($line -match "^APP_PORT=(.+)") { $AppPort = $Matches[1].Trim(); break }
@@ -139,7 +139,7 @@ if (-not $ready) {
     Write-Fail "App did not become healthy after $($max * 2)s.`nRun: $Compose logs billar"
 }
 
-# ── 7. Read credentials and print summary ────────────────────────────────────
+# 7. Read credentials and print summary
 $adminEmail = "admin@billar.app"
 $adminPass  = "change_me_on_first_login"
 foreach ($line in $envLines) {
@@ -164,7 +164,7 @@ Write-Host "    $Compose down                        # stop everything" -Foregro
 Write-Host "    $Compose down -v                     # stop + delete all data" -ForegroundColor Gray
 Write-Host ""
 
-# ── 8. Open browser ───────────────────────────────────────────────────────────
+# 8. Open browser
 try {
     Start-Process $Url
     Write-Ok "Browser opened at $Url"
