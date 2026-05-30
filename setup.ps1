@@ -103,12 +103,32 @@ if (-not (Test-Path ".env")) {
     Write-Ok ".env already exists - skipping"
 }
 
-# 5. Build and start services
+# 5. Free up required ports
+Write-Section "Freeing required ports..."
+
+$requiredPorts = @("3000", "5433")
+$allContainers = docker ps -a --format "{{.Names}}|{{.Ports}}" 2>&1
+foreach ($entry in $allContainers) {
+    $name = $entry.Split("|")[0]
+    $ports = $entry.Split("|")[1]
+    # Skip billar's own containers
+    if ($name -match "^billar") { continue }
+    foreach ($port in $requiredPorts) {
+        if ($ports -match ":${port}->") {
+            Write-Info "Port $port is used by '$name' - stopping and disabling auto-restart..."
+            docker update --restart=no $name 2>&1 | Out-Null
+            docker stop $name 2>&1 | Out-Null
+            Write-Ok "Freed port $port (stopped '$name')"
+        }
+    }
+}
+
+# 6. Build and start services
 Write-Section "Building and starting services (this may take a few minutes on first run)..."
 
 Invoke-Expression "$Compose up -d --build"
 
-# 6. Wait for the app to be ready
+# 7. Wait for the app to be ready
 Write-Section "Waiting for the app to be ready..."
 
 $AppPort = 3000
@@ -139,7 +159,7 @@ if (-not $ready) {
     Write-Fail "App did not become healthy after $($max * 2)s.`nRun: $Compose logs billar"
 }
 
-# 7. Read credentials and print summary
+# 8. Read credentials and print summary
 $adminEmail = "admin@billar.app"
 $adminPass  = "change_me_on_first_login"
 foreach ($line in $envLines) {
@@ -164,7 +184,7 @@ Write-Host "    $Compose down                        # stop everything" -Foregro
 Write-Host "    $Compose down -v                     # stop + delete all data" -ForegroundColor Gray
 Write-Host ""
 
-# 8. Open browser
+# 9. Open browser
 try {
     Start-Process $Url
     Write-Ok "Browser opened at $Url"
