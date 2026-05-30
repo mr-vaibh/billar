@@ -111,7 +111,7 @@ Invoke-Expression "$Compose up -d --build"
 # 6. Wait for the app to be ready
 Write-Section "Waiting for the app to be ready..."
 
-$AppPort = 3001
+$AppPort = 3000
 $envLines = Get-Content ".env" -ErrorAction SilentlyContinue
 foreach ($line in $envLines) {
     if ($line -match "^APP_PORT=(.+)") { $AppPort = $Matches[1].Trim(); break }
