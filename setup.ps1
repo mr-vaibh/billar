@@ -45,7 +45,7 @@ if (-not $dockerReady) {
         Write-Fail "Docker Desktop not found. Please start it manually and re-run this script."
     }
 
-    Start-Process $dockerDesktop
+    Start-Process $dockerDesktop -WindowStyle Hidden
     Write-Info "Waiting for Docker to become ready (this can take ~30 seconds)..."
 
     $waited = 0
