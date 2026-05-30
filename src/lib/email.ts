@@ -1,6 +1,8 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 const FROM = process.env.RESEND_FROM ?? 'Billar <noreply@billar.app>';
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3000';
 
@@ -16,7 +18,7 @@ export async function sendInviteEmail({
   token: string;
 }) {
   const link = `${APP_URL}/invite/${token}`;
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: `You've been invited to ${orgName} on Billar`,
@@ -32,7 +34,7 @@ export async function sendInviteEmail({
 }
 
 export async function sendInvoiceEmail({ to, orgName, billNumber, shareUrl }: { to: string; orgName: string; billNumber: string; shareUrl: string }) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: `Invoice ${billNumber} from ${orgName}`,
@@ -55,7 +57,7 @@ export async function sendPasswordResetEmail({
   token: string;
 }) {
   const link = `${APP_URL}/reset-password/${token}`;
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: 'Reset your Billar password',

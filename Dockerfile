@@ -9,6 +9,7 @@ RUN npm ci
 # Build
 FROM deps AS builder
 COPY . .
+RUN DATABASE_URL=postgresql://x:x@localhost/x npx prisma generate
 RUN npm run build
 
 # Production runner
@@ -34,8 +35,8 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 # Entrypoint runs migrations + seed then starts the server
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x docker-entrypoint.sh
+COPY docker-entrypoint.sh /app/start.sh
+RUN sed -i 's/\r//' /app/start.sh && chmod +x /app/start.sh
 
 # Create data directories
 RUN mkdir -p /data/bills /data/templates && chown -R nextjs:nodejs /data
@@ -49,4 +50,5 @@ ENV HOSTNAME="0.0.0.0"
 ENV BILLS_DIR=/data/bills
 ENV TEMPLATES_DIR=/data/templates
 
-CMD ["./docker-entrypoint.sh"]
+ENTRYPOINT []
+CMD ["/bin/sh", "/app/start.sh"]
